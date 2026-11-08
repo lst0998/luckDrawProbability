@@ -23,10 +23,6 @@ h1>span{position:relative;display:inline-block}h1>span>svg{position:absolute;lef
 .chance-method-tabs button:focus-visible { outline: 2px solid #8062d8; outline-offset: 2px; }
 .chance-method-panel[hidden] { display: none; }
 .chance-method-panel { padding-top: 4px; }
-.chance-active-rate { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; margin-top: 18px; border: 1px solid #dceade; background: #f3f8f4; border-radius: 8px; color: #52725d; }
-.chance-active-rate > span { display: flex; align-items: center; gap: 6px; font-size: 10px; }
-.chance-active-rate strong { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
 .estimator-scope { display: flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 10px; color: #82738f; }
 .estimator-results .primary-button { font-size: 11px; min-height: 40px; }
-.estimator-results .primary-button.is-applied { background: #eaf3ed; color: #4d7059; border-color: #d9e7de; box-shadow: none; opacity: 1; }
-@media (max-width: 640px) { .chance-method-tabs button { min-height: 44px; font-size: 12px; } .chance-active-rate > span, .estimator-scope { font-size: 11px; } .estimator-results .primary-button { min-height: 44px; } }
+@media (max-width: 640px) { .chance-method-tabs button { min-height: 44px; font-size: 12px; } .estimator-scope { font-size: 11px; } .estimator-results .primary-button { min-height: 44px; } }

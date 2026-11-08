@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Minus, Plus, SlidersHorizontal, Users, Ticket, Gift, RotateCcw, ArrowRight, Info, PencilLine, Calculator, CircleCheck } from 'lucide-react';
+import { Minus, Plus, SlidersHorizontal, Users, Ticket, Gift, RotateCcw, ArrowRight, Info, PencilLine, Calculator } from 'lucide-react';
 import { LIMITS, COST_LIMITS } from '../model.js';
-import { formatProbability as percent } from '../format.js';
 
 export function NumberField({ label, value, onChange, name, suffix, step = 1, limits, allowDecimals = false }) {
   const [draft, setDraft] = useState(String(value));
@@ -43,7 +42,6 @@ export default function Controls({ config, onChange, onReset, donationCost, onCo
         <div className="range-labels"><span>0%</span><span>50%</span><span>100%</span></div>
       </div>
       <div className="chance-method-panel" id="probability-panel-calculate" role="tabpanel" aria-labelledby="probability-tab-calculate" hidden={method !== 'calculate'}>{winningChanceCalculator}</div>
-      <div className="chance-active-rate" role="status"><span><CircleCheck size={15} aria-hidden="true"/>Rate in use</span><strong data-testid="current-win-probability">{percent(config.probability / 100)}</strong></div>
     </div>
     <div className="control-section"><div className="section-heading"><span className="step-number">02</span><h3>Your strategy</h3><Users size={15}/></div>
       {field('accounts', 'Your accounts')}{field('draws', 'Draws per account')}

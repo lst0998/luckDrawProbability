@@ -26,13 +26,13 @@ Build the static site with `npm run build`; serve the build with `npm run previe
 
 ## Orders-based probability estimate
 
-The left-hand **The winning chance** section has **Direct input** and **Calculate** tabs with one method visible at a time. A shared **Rate in use** indicator always shows the probability used by the graphs. Switching tabs preserves inputs and does not change the active rate. The calculator takes **total orders across all participants**, **average draws per order (coefficient)**, and **total prizes**. The coefficient can be fractional: 1.5 draws per order estimates 1,500 draws from 1,000 orders.
+The left-hand **The winning chance** section has **Direct input** and **Calculate** tabs with one method visible at a time. Switching tabs preserves inputs and does not change the active rate. The calculator takes **total orders across all participants**, **average draws per order (coefficient)**, and **total prizes**. The coefficient can be fractional: 1.5 draws per order estimates 1,500 draws from 1,000 orders.
 
 `estimated total draws = total orders × draws-per-order coefficient`
 
 `estimated win probability per draw = min(1, total prizes / estimated total draws)`
 
-This is an equal-draw estimate; account restrictions, prize-allocation rules, and shared-pool depletion can change actual odds. The calculator previews its result without changing the scenario. **Use this rate** copies the percentage rounded to two decimal places into the existing editable per-draw probability field. Further calculator edits do not overwrite that field; manual edits remain available in Direct input. When the preview matches the active rate, the button reads **In use** and is disabled. The calculator does not change your account count, draws per account, donation cost, or optional prize cap.
+This is an equal-draw estimate; account restrictions, prize-allocation rules, and shared-pool depletion can change actual odds. The calculator previews its result without changing the scenario. **Use this rate** copies the percentage rounded to two decimal places into the existing editable per-draw probability field. Further calculator edits do not overwrite that field; manual edits remain available in Direct input. The calculator does not change your account count, draws per account, donation cost, or optional prize cap.
 
 Zero orders or a zero coefficient yields no estimate and disables Apply. Zero prizes with positive draws yields 0%. More prizes than estimated draws yields 100% with an explanation. Counts must be integers from 0 to 1 billion; the coefficient accepts decimals from 0 to 10,000. The illustrative defaults are 1,000 orders, coefficient 2, and 100 prizes (5%), restored by Reset, which also selects Direct input. The displayed estimate and exported calculator percentage use the same two-decimal rounding as Apply. CSV exports label calculator inputs and the current preview separately from the active `probability` used by the graphs.
 
