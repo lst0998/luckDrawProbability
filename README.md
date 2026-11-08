@@ -16,7 +16,7 @@ Build the static site with `npm run build`; serve the build with `npm run previe
 ## Features
 
 - Adjustable per-draw win probability, your accounts, and draws per account. An optional cap on combined prizes is off by default.
-- Exact-outcome bars and a cumulative line for **P(prizes > k)**. For example, “more than 1” includes all outcomes of 2 or more prizes. Cumulative probabilities are shown directly in the graph; there is no target input.
+- Two separate graphs: bars for individual outcomes, and a cumulative line for **P(prizes > k)**. For example, “more than 1” includes all outcomes of 2 or more prizes. Cumulative probabilities are shown directly in the graph; there is no target input.
 - Expected prize count, chance of at least one prize, and a central 90% outcome interval.
 - Equal-draw-budget account comparisons, repeatable simulations, and CSV download including scenario settings and seed.
 - Responsive layout, keyboard-accessible chart tooltips, reduced-motion support, and cancellable worker calculations.
