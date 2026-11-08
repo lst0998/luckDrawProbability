@@ -26,15 +26,15 @@ Build the static site with `npm run build`; serve the build with `npm run previe
 
 ## Orders-based probability estimate
 
-The optional calculator takes **total orders across all participants**, **average draws per order (coefficient)**, and **total prizes**. The coefficient can be fractional: 1.5 draws per order estimates 1,500 draws from 1,000 orders.
+The optional calculator sits inside the left-hand **The winning chance** section and takes **total orders across all participants**, **average draws per order (coefficient)**, and **total prizes**. The coefficient can be fractional: 1.5 draws per order estimates 1,500 draws from 1,000 orders.
 
 `estimated total draws = total orders × draws-per-order coefficient`
 
 `estimated win probability per draw = min(1, total prizes / estimated total draws)`
 
-This is an equal-draw estimate; account restrictions, prize-allocation rules, and shared-pool depletion can change actual odds. The calculator previews its result without changing the scenario. **Apply calculated probability** copies the full-precision percentage into the existing editable per-draw probability field. Further calculator edits do not overwrite that field; manual edits remain available at all times. The calculator does not change your account count, draws per account, donation cost, or optional prize cap.
+This is an equal-draw estimate; account restrictions, prize-allocation rules, and shared-pool depletion can change actual odds. The calculator previews its result without changing the scenario. **Apply calculated probability** copies the percentage rounded to two decimal places into the existing editable per-draw probability field. Further calculator edits do not overwrite that field; manual edits remain available at all times. The calculator does not change your account count, draws per account, donation cost, or optional prize cap.
 
-Zero orders or a zero coefficient yields no estimate and disables Apply. Zero prizes with positive draws yields 0%. More prizes than estimated draws yields 100% with an explanation. Counts must be integers from 0 to 1 billion; the coefficient accepts decimals from 0 to 10,000. The illustrative defaults are 1,000 orders, coefficient 2, and 100 prizes (5%), restored by Reset. CSV exports label calculator inputs and the current preview separately from the active `probability` used by the graphs.
+Zero orders or a zero coefficient yields no estimate and disables Apply. Zero prizes with positive draws yields 0%. More prizes than estimated draws yields 100% with an explanation. Counts must be integers from 0 to 1 billion; the coefficient accepts decimals from 0 to 10,000. The illustrative defaults are 1,000 orders, coefficient 2, and 100 prizes (5%), restored by Reset. The displayed estimate and exported calculator percentage use the same two-decimal rounding as Apply. CSV exports label calculator inputs and the current preview separately from the active `probability` used by the graphs.
 
 ## Probability model
 

@@ -13,9 +13,14 @@ export function estimateWinProbability(inputs) {
     }
   }
   const totalDraws = inputs.totalOrders * inputs.drawsPerOrder;
+  const probability = totalDraws > 0 ? Math.min(1, inputs.totalPrizes / totalDraws) : null;
+  // Round in hundredths of a percent, allowing for floating-point error
+  // at decimal midpoints (for example, 107 / 4000 must display 2.68%).
+  const basisPoints = totalDraws > 0 ? Math.min(10000, inputs.totalPrizes * 10000 / totalDraws) : null;
   return {
     totalDraws,
-    probability: totalDraws > 0 ? Math.min(1, inputs.totalPrizes / totalDraws) : null,
+    probability,
+    probabilityPercent: basisPoints === null ? null : Math.round(basisPoints + 4 * Number.EPSILON * basisPoints) / 100,
     capped: totalDraws > 0 && inputs.totalPrizes > totalDraws,
   };
 }

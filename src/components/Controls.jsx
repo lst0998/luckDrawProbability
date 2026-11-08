@@ -19,15 +19,16 @@ export function NumberField({ label, value, onChange, name, suffix, step = 1, li
     <button type="button" onClick={() => onChange(Math.min(max, +(value + step).toFixed(2)))} disabled={value >= max} aria-label={`Increase ${label.toLowerCase()}`}><Plus size={13}/></button>
   </div></div>;
 }
-export default function Controls({ config, onChange, onReset, donationCost, onCostChange }) {
+export default function Controls({ config, onChange, onReset, donationCost, onCostChange, winningChanceCalculator }) {
   const field = (name, label) => <NumberField key={name} name={name} label={label} value={config[name]} onChange={v => onChange(name, v)}/>;
   return <aside className="control-panel card" aria-label="Scenario settings">
     <div className="panel-title"><div><SlidersHorizontal size={17}/><h2>Set the scene</h2></div><button className="icon-button" onClick={onReset} title="Reset to example" aria-label="Reset to example"><RotateCcw size={15}/></button></div>
-    <div className="control-section"><div className="section-heading"><span className="step-number">01</span><h3>The winning chance</h3></div>
+    <div className="control-section" id="winning-chance-settings"><div className="section-heading"><span className="step-number">01</span><h3>The winning chance</h3></div>
       <NumberField name="probability" label="Win probability per draw" value={config.probability} onChange={v => onChange('probability', v)} suffix="%" step={.5}/>
       <input className="slider" aria-label="Win probability slider" type="range" min="0" max="100" step=".5" value={config.probability} onChange={e => onChange('probability', Number(e.target.value))} style={{'--progress':`${config.probability}%`}}/>
       <div className="range-labels"><span>0%</span><span>50%</span><span>100%</span></div>
       <p className="field-note">Your actual chance of receiving a prize on each draw, until that account wins.</p>
+      {winningChanceCalculator}
     </div>
     <div className="control-section"><div className="section-heading"><span className="step-number">02</span><h3>Your strategy</h3><Users size={15}/></div>
       {field('accounts', 'Your accounts')}{field('draws', 'Draws per account')}

@@ -38,6 +38,8 @@ try {
   assert.ok((await cumulativeChart.locator('.cumulative-strip').innerText()).includes('99.95%'),'High cumulative chances must not round to certainty');
   console.log('PASS independent outcome and inclusive X-or-more graphs');
   const estimator=page.locator('#win-chance-calculator');
+  assert.equal(await page.locator('#winning-chance-settings #win-chance-calculator').count(),1,'Calculator must be inside the left winning-chance section');
+  assert.equal(await page.locator('.results-column #win-chance-calculator').count(),0);
   const applyEstimate=estimator.getByRole('button',{name:'Apply calculated probability',exact:true});
   assert.equal(await page.getByTestId('estimated-total-draws').innerText(),'2,000');
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'5.00%');
@@ -52,11 +54,11 @@ try {
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'3.33%');
   await applyEstimate.click();
   await ready();
-  assert.ok(Math.abs(Number(await page.locator('#probability').inputValue())-100/30)<1e-12,'Apply must use full precision, not the rounded percentage');
-  assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),(20*(1-(1-1/30)**10)).toFixed(2));
+  assert.equal(await page.locator('#probability').inputValue(),'3.33','Apply must round the percentage to two decimal places');
+  assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),(20*(1-(1-.0333)**10)).toFixed(2));
   await field('totalPrizes',60);
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'2.00%');
-  assert.ok(Math.abs(Number(await page.locator('#probability').inputValue())-100/30)<1e-12);
+  assert.equal(await page.locator('#probability').inputValue(),'3.33');
   await field('probability',6);
   assert.equal(await page.getByTestId('current-win-probability').innerText(),'6.00%');
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'2.00%');

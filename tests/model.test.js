@@ -182,13 +182,26 @@ test('draws-per-order coefficient accepts fractional averages and preserves prec
   const estimate=model.estimateWinProbability({totalOrders:1000,drawsPerOrder:1.5,totalPrizes:100});
   assert.equal(estimate.totalDraws,1500);
   close(estimate.probability,1/15);
+  assert.equal(estimate.probabilityPercent,6.67);
   assert.equal(model.estimateWinProbability({totalOrders:3,drawsPerOrder:1,totalPrizes:1}).probability,1/3);
+});
+test('calculated percentages round decimal midpoints up to two places', () => {
+  for (const [totalOrders, drawsPerOrder, totalPrizes, expected] of [
+    [4000, 1, 107, 2.68],
+    [4000, 1, 403, 10.08],
+    [2000, 0.2, 23, 5.75],
+    [4000, 1.000001, 107, 2.67],
+    [4000, 0.999999, 107, 2.68],
+  ]) {
+    assert.equal(model.estimateWinProbability({totalOrders, drawsPerOrder, totalPrizes}).probabilityPercent, expected);
+  }
 });
 test('orders calculator handles empty pools, no prizes, and more prizes than draws', () => {
   for(const patch of [{totalOrders:0},{drawsPerOrder:0}]) {
     const estimate=model.estimateWinProbability({totalOrders:1000,drawsPerOrder:2,totalPrizes:100,...patch});
     assert.equal(estimate.totalDraws,0);
     assert.equal(estimate.probability,null);
+    assert.equal(estimate.probabilityPercent,null);
   }
   assert.equal(model.estimateWinProbability({totalOrders:1000,drawsPerOrder:2,totalPrizes:0}).probability,0);
   const capped=model.estimateWinProbability({totalOrders:10,drawsPerOrder:2,totalPrizes:30});
