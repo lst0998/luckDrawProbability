@@ -28,7 +28,7 @@ export default function Controls({ config, onChange, onReset, donationCost, onCo
       <input className="slider" aria-label="Win probability slider" type="range" min="0" max="100" step=".5" value={config.probability} onChange={e => onChange('probability', Number(e.target.value))} style={{'--progress':`${config.probability}%`}}/>
       <div className="range-labels"><span>0%</span><span>50%</span><span>100%</span></div>
       <p className="field-note">Your actual chance of receiving a prize on each draw, until that account wins.</p>
-      {winningChanceCalculator}
+      {winningChanceCalculator && <><div className="chance-method-divider">OR</div>{winningChanceCalculator}</>}
     </div>
     <div className="control-section"><div className="section-heading"><span className="step-number">02</span><h3>Your strategy</h3><Users size={15}/></div>
       {field('accounts', 'Your accounts')}{field('draws', 'Draws per account')}
