@@ -171,3 +171,35 @@ test('cost filter handles certainty, optional caps, and no possible wins', () =>
   }
   assert.deepEqual(chart.visibleCostOutcomes(model.theoreticalCosts({...base,probability:0},30)),[]);
 });
+
+test('orders calculator estimates draw probability from the total draw pool', () => {
+  const estimate=model.estimateWinProbability({totalOrders:1000,drawsPerOrder:2,totalPrizes:100});
+  assert.equal(estimate.totalDraws,2000);
+  assert.equal(estimate.probability,.05);
+  assert.equal(estimate.capped,false);
+});
+test('draws-per-order coefficient accepts fractional averages and preserves precision', () => {
+  const estimate=model.estimateWinProbability({totalOrders:1000,drawsPerOrder:1.5,totalPrizes:100});
+  assert.equal(estimate.totalDraws,1500);
+  close(estimate.probability,1/15);
+  assert.equal(model.estimateWinProbability({totalOrders:3,drawsPerOrder:1,totalPrizes:1}).probability,1/3);
+});
+test('orders calculator handles empty pools, no prizes, and more prizes than draws', () => {
+  for(const patch of [{totalOrders:0},{drawsPerOrder:0}]) {
+    const estimate=model.estimateWinProbability({totalOrders:1000,drawsPerOrder:2,totalPrizes:100,...patch});
+    assert.equal(estimate.totalDraws,0);
+    assert.equal(estimate.probability,null);
+  }
+  assert.equal(model.estimateWinProbability({totalOrders:1000,drawsPerOrder:2,totalPrizes:0}).probability,0);
+  const capped=model.estimateWinProbability({totalOrders:10,drawsPerOrder:2,totalPrizes:30});
+  assert.equal(capped.probability,1);
+  assert.equal(capped.capped,true);
+});
+test('orders calculator validates counts, coefficient, and numerical bounds', () => {
+  for(const patch of [{totalOrders:-1},{totalOrders:1.5},{totalOrders:1000000001},{drawsPerOrder:-.1},{drawsPerOrder:Infinity},{drawsPerOrder:10001},{totalPrizes:NaN},{totalPrizes:1.5}]) {
+    assert.throws(()=>model.estimateWinProbability({totalOrders:1000,drawsPerOrder:2,totalPrizes:100,...patch}));
+  }
+  const large=model.estimateWinProbability({totalOrders:1000000000,drawsPerOrder:10000,totalPrizes:1});
+  assert.equal(large.totalDraws,10000000000000);
+  assert.ok(large.probability>0 && large.probability<.0000001);
+});

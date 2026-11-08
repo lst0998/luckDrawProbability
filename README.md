@@ -15,6 +15,7 @@ Build the static site with `npm run build`; serve the build with `npm run previe
 
 ## Features
 
+- An optional orders calculator estimates per-draw probability from total orders × average draws per order (a fractional coefficient) and total prizes. Apply explicitly, or keep entering a probability directly.
 - Adjustable per-draw win probability, your accounts, and draws per account. An optional cap on combined prizes is off by default.
 - Two separate graphs: bars for individual outcomes, and a cumulative line for **P(prizes ≥ X)**. For example, “2 or more prizes” includes exactly 2 prizes and every higher outcome. Cumulative probabilities are shown directly in the graph; there is no target input.
 - Cost per donation, total donation cost, expected tickets (2 per prize), and theoretical cost per ticket. One donation is one draw; all planned donations are charged.
@@ -23,9 +24,21 @@ Build the static site with `npm run build`; serve the build with `npm run previe
 - Calculated equal-draw-budget account comparisons and CSV download including scenario settings, probabilities, and costs at every win count.
 - Responsive layout, keyboard-accessible chart tooltips, reduced-motion support, and cancellable worker calculations.
 
+## Orders-based probability estimate
+
+The optional calculator takes **total orders across all participants**, **average draws per order (coefficient)**, and **total prizes**. The coefficient can be fractional: 1.5 draws per order estimates 1,500 draws from 1,000 orders.
+
+`estimated total draws = total orders × draws-per-order coefficient`
+
+`estimated win probability per draw = min(1, total prizes / estimated total draws)`
+
+This is an equal-draw estimate; account restrictions, prize-allocation rules, and shared-pool depletion can change actual odds. The calculator previews its result without changing the scenario. **Apply calculated probability** copies the full-precision percentage into the existing editable per-draw probability field. Further calculator edits do not overwrite that field; manual edits remain available at all times. The calculator does not change your account count, draws per account, donation cost, or optional prize cap.
+
+Zero orders or a zero coefficient yields no estimate and disables Apply. Zero prizes with positive draws yields 0%. More prizes than estimated draws yields 100% with an explanation. Counts must be integers from 0 to 1 billion; the coefficient accepts decimals from 0 to 10,000. The illustrative defaults are 1,000 orders, coefficient 2, and 100 prizes (5%), restored by Reset. CSV exports label calculator inputs and the current preview separately from the active `probability` used by the graphs.
+
 ## Probability model
 
-The supplied probability p is the actual chance of receiving a prize on each draw, while the account has not yet won. Competition is already reflected in p, so there are no competitor inputs or additional allocation step. Each account wins with probability `q = 1 - (1 - p)^draws`, with a maximum of one prize per account. Total wins follow `X ~ Binomial(accounts, q)`.
+The supplied probability p is the actual chance of receiving a prize on each draw, while the account has not yet won. Once p is entered or applied from the calculator, the distribution uses it directly without a second prize-allocation step. Each account wins with probability `q = 1 - (1 - p)^draws`, with a maximum of one prize per account. Total wins follow `X ~ Binomial(accounts, q)`.
 
 With 5% per draw, 10 draws per account, and 20 accounts, each account has a 40.1263% chance of winning and the mathematical expectation is 8.0253 prizes.
 

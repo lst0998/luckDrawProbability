@@ -2,6 +2,23 @@ export const LIMITS = { probability: [0, 100], accounts: [0, 1000], draws: [0, 1
 export const COST_LIMITS = [0, 1000000];
 export const TICKETS_PER_PRIZE = 2;
 export const DEFAULTS = { probability: 5, accounts: 20, draws: 10, prizes: 20, limitPrizes: false };
+export const ESTIMATOR_DEFAULTS = { totalOrders: 1000, drawsPerOrder: 2, totalPrizes: 100 };
+export const ESTIMATOR_LIMITS = { totalOrders: [0, 1000000000], drawsPerOrder: [0, 10000], totalPrizes: [0, 1000000000] };
+
+export function estimateWinProbability(inputs) {
+  for (const [key, [min, max]] of Object.entries(ESTIMATOR_LIMITS)) {
+    const value = inputs[key];
+    if (!Number.isFinite(value) || value < min || value > max || (key !== 'drawsPerOrder' && !Number.isInteger(value))) {
+      throw new RangeError(`Invalid ${key}`);
+    }
+  }
+  const totalDraws = inputs.totalOrders * inputs.drawsPerOrder;
+  return {
+    totalDraws,
+    probability: totalDraws > 0 ? Math.min(1, inputs.totalPrizes / totalDraws) : null,
+    capped: totalDraws > 0 && inputs.totalPrizes > totalDraws,
+  };
+}
 
 export function accountWinChance(percent, draws) {
   if (draws === 0 || percent === 0) return 0;

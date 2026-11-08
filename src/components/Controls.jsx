@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Minus, Plus, SlidersHorizontal, Users, Ticket, Gift, RotateCcw, ArrowRight, Info } from 'lucide-react';
 import { LIMITS, COST_LIMITS } from '../model.js';
 
-function NumberField({ label, value, onChange, name, suffix, step = 1, limits }) {
+export function NumberField({ label, value, onChange, name, suffix, step = 1, limits, allowDecimals = false }) {
   const [draft, setDraft] = useState(String(value));
   const [min, max] = limits ?? LIMITS[name];
   useEffect(() => setDraft(String(value)), [value]);
@@ -10,7 +10,7 @@ function NumberField({ label, value, onChange, name, suffix, step = 1, limits })
     setDraft(raw);
     if (raw.trim() === '') return;
     const n = Number(raw);
-    if (Number.isFinite(n) && n >= min && n <= max && (name === 'probability' || name === 'donationCost' || Number.isInteger(n))) onChange(n);
+    if (Number.isFinite(n) && n >= min && n <= max && (allowDecimals || name === 'probability' || name === 'donationCost' || Number.isInteger(n))) onChange(n);
   };
   return <div className="number-field"><label htmlFor={name}>{label}</label><div className="number-input">
     <button type="button" onClick={() => onChange(Math.max(min, +(value - step).toFixed(2)))} disabled={value <= min} aria-label={`Decrease ${label.toLowerCase()}`}><Minus size={13}/></button>
