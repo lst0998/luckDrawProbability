@@ -41,7 +41,7 @@ All probabilities and strategy comparisons are calculated directly from the bino
 
 `theoretical cost per ticket = total donation cost / expected tickets`
 
-Expected prizes are calculated from the binomial distribution, including the optional cap, using the same direct calculation as the probability charts. This is long-run spending divided by expected ticket yield, not the average of per-outcome ratios (some outcomes yield zero tickets). No expected tickets is displayed as “— / No tickets expected”; free donations with positive expected yield cost zero per ticket. All amounts use the user’s input currency or units, with a default donation cost of 1.
+Expected prizes are calculated from the binomial distribution, including the optional cap, using the same direct calculation as the probability charts. This is long-run spending divided by expected ticket yield, not the average of per-outcome ratios (some outcomes yield zero tickets). No expected tickets is displayed as “— / No tickets expected”; free donations with positive expected yield cost zero per ticket. All amounts use the user’s input currency or units, with a default donation cost of 30.
 
 The separate cost graph shows `total donation cost / (2 × wins)` for each positive integer win count up to the account/prize limit. It shows hypothetical costs even when an outcome has zero probability; the tooltip includes that outcome’s calculated chance. Zero wins yields zero tickets, so no finite cost per ticket is plotted. The curve and CSV preserve every integer outcome, and hover, touch, or arrow keys select a count. The graph is distinct from the summary ratio of spending to expected ticket yield.
 

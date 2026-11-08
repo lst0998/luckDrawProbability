@@ -62,7 +62,7 @@ try {
   console.log('PASS individual integers at high account counts, accurate tooltips and costs below probability graphs');
   const costNumber=async()=>Number((await page.getByTestId('cost-per-ticket').innerText()).replaceAll(',',''));
   const baseTicketCost=await costNumber();
-  assert.ok(Math.abs(baseTicketCost - 200/(40*(1-.95**10))) < .0001);
+  assert.ok(Math.abs(baseTicketCost - 6000/(40*(1-.95**10))) < .0001);
   await field('donationCost',10);
   assert.ok(Math.abs(await costNumber() - 2000/(40*(1-.95**10))) < .0001);
   assert.equal(await page.getByTestId('total-cost').innerText(),'2,000.00');
@@ -109,7 +109,7 @@ try {
   console.log('PASS certain probability, optional cap, cap disable and zero probability');
   await page.getByRole('button',{name:'Reset to example',exact:true}).click();
   await ready();
-  assert.equal(await page.locator('#donationCost').inputValue(),'1');
+  assert.equal(await page.locator('#donationCost').inputValue(),'30');
   assert.equal(await page.getByRole('button',{name:'Run simulation',exact:true}).count(),0);
   assert.doesNotMatch(await page.locator('body').innerText(),/10,000 rounds|simulat|confidence interval/i);
   await field('probability',6);
@@ -125,7 +125,7 @@ try {
   assert.match(csv,/probability_x_or_more/);
   assert.match(csv,/accounts,20/);
   assert.match(csv,/limitPrizes,false/);
-  assert.match(csv,/donation_cost,1/);
+  assert.match(csv,/^donation_cost,30$/m);
   assert.match(csv,/tickets_per_prize,2/);
   assert.match(csv,/theoretical_cost_per_ticket/);
   const rows=csv.split('\n');
@@ -139,8 +139,8 @@ try {
   assert.equal(distribution.length,21);
   assert.match(rows.at(-21),/^0,[^,]+,1,0,$/);
   assert.equal(distribution[1][3],2);
-  assert.equal(distribution[1][4],100);
-  assert.equal(distribution[2][4],50);
+  assert.equal(distribution[1][4],3000);
+  assert.equal(distribution[2][4],1500);
   console.log('PASS CSV download with scenario and cumulative probabilities');
   await page.getByRole('button',{name:'How it works'}).click();
   await page.locator('dialog[open]').waitFor();
@@ -170,7 +170,7 @@ try {
   await costCurve.focus();
   await page.keyboard.press('Home');
   assert.match(await costChart.locator('.chart-tooltip').innerText(),/Cost per ticket\s*0.00/);
-  await field('donationCost',1);
+  await field('donationCost',30);
   console.log('PASS invalid numeric input recovery and zero donation cost');
   await page.setViewportSize({width:390,height:844});
   await page.waitForFunction(()=>{

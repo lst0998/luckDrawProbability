@@ -6,6 +6,7 @@ import CostSummary from './components/CostSummary.jsx';
 import CostByWinsChart from './components/CostByWinsChart.jsx';
 import OutcomeChart from './components/OutcomeChart.jsx';
 import { formatProbability as percent } from './format.js';
+const DEFAULT_DONATION_COST = 30;
 const number = value => value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 function ModelDialog({ onClose }) {
@@ -16,7 +17,7 @@ function ModelDialog({ onClose }) {
 
 export default function App() {
   const [config,setConfig] = useState(DEFAULTS);
-  const [donationCost,setDonationCost] = useState(1);
+  const [donationCost,setDonationCost] = useState(DEFAULT_DONATION_COST);
   const [result,setResult] = useState(null);
   const [comparisons,setComparisons] = useState([]);
   const [busy,setBusy] = useState(true);
@@ -45,7 +46,7 @@ export default function App() {
     return ()=>{clearTimeout(timer);worker?.terminate();};
   },[config]);
   const update=(name,value)=>{setBusy(true);setConfig(c=>({...c,[name]:value}));};
-  const reset=()=>{setBusy(true);setConfig({...DEFAULTS});setDonationCost(1);};
+  const reset=()=>{setBusy(true);setConfig({...DEFAULTS});setDonationCost(DEFAULT_DONATION_COST);};
   const totalDraws=config.accounts*config.draws;
   const costs=useMemo(()=>theoreticalCosts(config,donationCost),[config,donationCost]);
   const ownChance=accountWinChance(config.probability,config.draws);
