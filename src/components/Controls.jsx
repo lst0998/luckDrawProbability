@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Minus, Plus, SlidersHorizontal, Users, Ticket, Gift, RotateCcw, ArrowRight, Info } from 'lucide-react';
+import { Minus, Plus, SlidersHorizontal, Users, Ticket, Gift, RotateCcw, ArrowRight, Info, PencilLine, Calculator, CircleCheck } from 'lucide-react';
 import { LIMITS, COST_LIMITS } from '../model.js';
+import { formatProbability as percent } from '../format.js';
 
 export function NumberField({ label, value, onChange, name, suffix, step = 1, limits, allowDecimals = false }) {
   const [draft, setDraft] = useState(String(value));
@@ -20,15 +21,29 @@ export function NumberField({ label, value, onChange, name, suffix, step = 1, li
   </div></div>;
 }
 export default function Controls({ config, onChange, onReset, donationCost, onCostChange, winningChanceCalculator }) {
+  const [method, setMethod] = useState('direct');
+  const switchWithKeyboard = event => {
+    const next = { ArrowLeft: method === 'direct' ? 'calculate' : 'direct', ArrowRight: method === 'direct' ? 'calculate' : 'direct', Home: 'direct', End: 'calculate' }[event.key];
+    if (!next) return;
+    event.preventDefault();
+    setMethod(next);
+    event.currentTarget.parentElement.querySelector(`#probability-tab-${next}`).focus();
+  };
   const field = (name, label) => <NumberField key={name} name={name} label={label} value={config[name]} onChange={v => onChange(name, v)}/>;
   return <aside className="control-panel card" aria-label="Scenario settings">
-    <div className="panel-title"><div><SlidersHorizontal size={17}/><h2>Set the scene</h2></div><button className="icon-button" onClick={onReset} title="Reset to example" aria-label="Reset to example"><RotateCcw size={15}/></button></div>
+    <div className="panel-title"><div><SlidersHorizontal size={17}/><h2>Set the scene</h2></div><button className="icon-button" onClick={() => { setMethod('direct'); onReset(); }} title="Reset to example" aria-label="Reset to example"><RotateCcw size={15}/></button></div>
     <div className="control-section" id="winning-chance-settings"><div className="section-heading"><span className="step-number">01</span><h3>The winning chance</h3></div>
-      <NumberField name="probability" label="Win probability per draw" value={config.probability} onChange={v => onChange('probability', v)} suffix="%" step={.5}/>
-      <input className="slider" aria-label="Win probability slider" type="range" min="0" max="100" step=".5" value={config.probability} onChange={e => onChange('probability', Number(e.target.value))} style={{'--progress':`${config.probability}%`}}/>
-      <div className="range-labels"><span>0%</span><span>50%</span><span>100%</span></div>
-      <p className="field-note">Your actual chance of receiving a prize on each draw, until that account wins.</p>
-      {winningChanceCalculator && <><div className="chance-method-divider">OR</div>{winningChanceCalculator}</>}
+      <div className="chance-method-tabs" role="tablist" aria-label="Winning probability method">
+        <button type="button" role="tab" id="probability-tab-direct" aria-controls="probability-panel-direct" aria-selected={method === 'direct'} tabIndex={method === 'direct' ? 0 : -1} onClick={() => setMethod('direct')} onKeyDown={switchWithKeyboard}><PencilLine size={15} aria-hidden="true"/>Direct input</button>
+        <button type="button" role="tab" id="probability-tab-calculate" aria-controls="probability-panel-calculate" aria-selected={method === 'calculate'} tabIndex={method === 'calculate' ? 0 : -1} onClick={() => setMethod('calculate')} onKeyDown={switchWithKeyboard}><Calculator size={15} aria-hidden="true"/>Calculate</button>
+      </div>
+      <div className="chance-method-panel" id="probability-panel-direct" role="tabpanel" aria-labelledby="probability-tab-direct" hidden={method !== 'direct'}>
+        <NumberField name="probability" label="Win probability per draw" value={config.probability} onChange={v => onChange('probability', v)} suffix="%" step={.5}/>
+        <input className="slider" aria-label="Win probability slider" type="range" min="0" max="100" step=".5" value={config.probability} onChange={e => onChange('probability', Number(e.target.value))} style={{'--progress':`${config.probability}%`}}/>
+        <div className="range-labels"><span>0%</span><span>50%</span><span>100%</span></div>
+      </div>
+      <div className="chance-method-panel" id="probability-panel-calculate" role="tabpanel" aria-labelledby="probability-tab-calculate" hidden={method !== 'calculate'}>{winningChanceCalculator}</div>
+      <div className="chance-active-rate" role="status"><span><CircleCheck size={15} aria-hidden="true"/>Rate in use</span><strong data-testid="current-win-probability">{percent(config.probability / 100)}</strong></div>
     </div>
     <div className="control-section"><div className="section-heading"><span className="step-number">02</span><h3>Your strategy</h3><Users size={15}/></div>
       {field('accounts', 'Your accounts')}{field('draws', 'Draws per account')}
