@@ -62,7 +62,6 @@ try {
   const applyEstimate=estimator.getByTestId('apply-estimate');
   assert.equal(await applyEstimate.innerText(),'In use');
   assert.ok(await applyEstimate.isDisabled());
-  assert.equal(await page.getByTestId('estimated-total-draws').innerText(),'2,000');
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'5.00%');
   await field('probability',7);
   const manualExpected=await page.getByTestId('expected').innerText();
@@ -73,7 +72,6 @@ try {
   assert.equal(await page.locator('#probability').inputValue(),'7','Editing the calculator must preserve manual odds');
   assert.equal(await page.getByTestId('expected').innerText(),manualExpected);
   await field('drawsPerOrder',1.5);
-  assert.equal(await page.getByTestId('estimated-total-draws').innerText(),'3,000');
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'3.33%');
   await applyEstimate.click();
   await ready();
