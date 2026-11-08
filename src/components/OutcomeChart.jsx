@@ -14,19 +14,25 @@ function ProbabilityPlot({ result, cumulative = false }) {
   }, []);
 
   const bins = useMemo(() => {
-    let last = result.histogram.findLastIndex(x => x > 0);
-    last = Math.min(result.histogram.length - 1, Math.max(4, last));
-    const labelWidth = last > 99 ? 60 : last > 20 ? 42 : 20;
-    const maxBins = Math.max(4, Math.min(24, Math.floor((chartWidth - 75) / labelWidth)));
+    let last = result.probabilities.findLastIndex(x => x > 0);
+    last = Math.min(result.probabilities.length - 1, Math.max(4, last));
+    const digits = String(last).length;
+    let labelWidth = Math.max(20, digits * 6 + 8);
+    let maxBins = Math.max(4, Math.min(24, Math.floor((chartWidth - 75) / labelWidth)));
+    if (!cumulative && last + 1 > maxBins) {
+      // Range labels need room for two numbers and a dash on narrow screens.
+      labelWidth = digits * 12 + 16;
+      maxBins = Math.max(2, Math.min(24, Math.floor((chartWidth - 75) / labelWidth)));
+    }
     const width = Math.max(1, Math.ceil((last + 1) / maxBins));
     const out = [];
     for (let lo = 0; lo <= last; lo += width) {
       const hi = Math.min(last, lo + width - 1);
-      const chance = result.histogram.slice(lo, hi + 1).reduce((a, b) => a + b, 0) / result.trials;
+      const chance = result.probabilities.slice(lo, hi + 1).reduce((a, b) => a + b, 0);
       out.push({ lo, hi, chance, tail: result.atLeast[hi], label: lo === hi ? String(lo) : `${lo}–${hi}` });
     }
     return out;
-  }, [result, chartWidth]);
+  }, [result, chartWidth, cumulative]);
 
   const W = chartWidth, H = chartWidth < 450 ? 230 : 270;
   const left = 43, right = 20, top = 23, bottom = 42;
@@ -51,7 +57,7 @@ function ProbabilityPlot({ result, cumulative = false }) {
           <h2>{cumulative ? 'Chance of winning X or more prizes' : 'What could you win?'}</h2>
           <p>{cumulative ? 'Includes exactly X prizes and every higher outcome.' : 'The chance of each individual prize outcome.'}</p>
         </div>
-        <span className="pill"><span className="live-dot"/>{result.trials.toLocaleString()} rounds</span>
+        <span className="pill"><span className="live-dot"/>Calculated</span>
       </div>
 
       <div className="chart-legend">

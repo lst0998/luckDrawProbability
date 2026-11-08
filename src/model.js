@@ -8,16 +8,6 @@ export function accountWinChance(percent, draws) {
   if (percent === 100) return 1;
   return -Math.expm1(draws * Math.log1p(-percent / 100));
 }
-export function seededRandom(seed) {
-  let state = seed >>> 0;
-  return () => {
-    state += 0x6D2B79F5;
-    let t = state;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-}
 // Start at the mode, then normalize. Unlike a recurrence from P(0), this
 // does not underflow the entire distribution for large populations.
 function binomialMass(n, p) {
@@ -33,35 +23,6 @@ function binomialMass(n, p) {
   const total = mass.reduce((a, b) => a + b, 0);
   return mass.map(value => value / total);
 }
-export function binomialCDF(n, p) {
-  const mass = binomialMass(n, p);
-  let cumulative = 0;
-  for (let k = 0; k <= n; k++) { cumulative += mass[k]; mass[k] = Math.min(1, cumulative); }
-  mass[n] = 1;
-  return mass;
-}
-function sampleCDF(cdf, rng) {
-  const u = rng();
-  let low = 0, high = cdf.length - 1;
-  while (low < high) {
-    const mid = (low + high) >>> 1;
-    if (u < cdf[mid]) high = mid; else low = mid + 1;
-  }
-  return low;
-}
-export function summarize(histogram, trials) {
-  let sum = 0, cumulative = 0;
-  let low, high;
-  const atLeast = histogram.map((count, k) => {
-    sum += k * count;
-    cumulative += count;
-    if (low === undefined && cumulative >= trials * .05) low = k;
-    if (high === undefined && cumulative >= trials * .95) high = k;
-    // Keep the outcome at k: cumulative probabilities mean P(prizes >= k).
-    return (trials - cumulative + count) / trials;
-  });
-  return { histogram, trials, atLeast, expected: sum / trials, range: [low ?? 0, high ?? 0] };
-}
 function validateConfig(config) {
   for (const [key, [min, max]] of Object.entries(LIMITS)) {
     const value = config[key];
@@ -69,22 +30,32 @@ function validateConfig(config) {
   }
   if (typeof config.limitPrizes !== 'boolean') throw new RangeError('Invalid limitPrizes');
 }
-export function simulate(config, trials = 10000, seed = 42) {
+export function calculate(config) {
   validateConfig(config);
-  if (!Number.isInteger(trials) || trials < 1) throw new RangeError('Invalid trial count');
   const { probability, accounts, draws, prizes, limitPrizes } = config;
   const ownChance = accountWinChance(probability, draws);
-  const ownCDF = binomialCDF(accounts, ownChance);
   const cap = limitPrizes ? Math.min(accounts, prizes) : accounts;
-  const histogram = new Array(cap + 1).fill(0);
-  const rng = seededRandom(seed);
-  const recent = [];
-  for (let i = 0; i < trials; i++) {
-    const won = Math.min(sampleCDF(ownCDF, rng), cap);
-    histogram[won]++;
-    if (i < 40) recent.push(won);
+  const probabilities = new Array(cap + 1).fill(0);
+  binomialMass(accounts, ownChance).forEach((mass, wins) => {
+    probabilities[Math.min(wins, cap)] += mass;
+  });
+  if (cap === 0) probabilities[0] = 1;
+  // Sum from the upper tail to preserve very small positive probabilities.
+  const atLeast = new Array(cap + 1);
+  let tail = 0;
+  for (let k = cap; k >= 0; k--) {
+    tail += probabilities[k];
+    atLeast[k] = Math.min(1, tail);
   }
-  return { ...summarize(histogram, trials), ownChance, recent };
+  atLeast[0] = 1;
+  let expected = 0, cumulative = 0, low, high;
+  probabilities.forEach((mass, k) => {
+    expected += k * mass;
+    cumulative += mass;
+    if (low === undefined && cumulative >= .05) low = k;
+    if (high === undefined && cumulative >= .95) high = k;
+  });
+  return { probabilities, atLeast, expected, range: [low ?? 0, high ?? cap], ownChance };
 }
 export function strategies(config) {
   const budget = config.accounts * config.draws;
@@ -95,30 +66,22 @@ export function strategies(config) {
   for (let i = 0; i < 5; i++) selected.add(divisors[Math.round(i * (divisors.length - 1) / 4)]);
   return [...selected].sort((a, b) => a - b).map(accounts => ({ accounts, draws: budget / accounts }));
 }
-export function wilsonInterval(successes, trials) {
-  const p = successes / trials, z = 1.96, denominator = 1 + z * z / trials;
-  const center = (p + z * z / (2 * trials)) / denominator;
-  const radius = z * Math.sqrt(p * (1 - p) / trials + z * z / (4 * trials * trials)) / denominator;
-  return [Math.max(0, center - radius), Math.min(1, center + radius)];
-}
-
-// Exact expectation for the ticket-cost calculation; independent of simulation seed.
 export function theoreticalCosts(config, donationCost) {
-  validateConfig(config);
+  const result = calculate(config);
   if (!Number.isFinite(donationCost) || donationCost < COST_LIMITS[0] || donationCost > COST_LIMITS[1]) {
     throw new RangeError('Invalid donation cost');
   }
-  const { accounts, draws, probability, limitPrizes, prizes } = config;
-  const q = accountWinChance(probability, draws);
-  let expectedPrizes = accounts * q;
-  if (limitPrizes && prizes < accounts) {
-    expectedPrizes = prizes === 0 ? 0 : binomialMass(accounts, q).reduce((sum, mass, wins) => sum + Math.min(wins, prizes) * mass, 0);
-  }
-  const totalDonations = accounts * draws;
+  const expectedPrizes = result.expected;
+  const totalDonations = config.accounts * config.draws;
   const totalCost = totalDonations * donationCost;
   const expectedTickets = expectedPrizes * TICKETS_PER_PRIZE;
   return {
     totalDonations, totalCost, expectedPrizes, expectedTickets,
     costPerTicket: expectedTickets > 0 ? totalCost / expectedTickets : null,
+    costByWins: result.probabilities.map((probability, wins) => ({
+      wins, tickets: wins * TICKETS_PER_PRIZE,
+      costPerTicket: wins > 0 ? totalCost / (wins * TICKETS_PER_PRIZE) : null,
+      probability,
+    })),
   };
 }

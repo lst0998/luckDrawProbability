@@ -1,11 +1,6 @@
 import { Ticket } from 'lucide-react';
 import { TICKETS_PER_PRIZE } from '../model.js';
-
-function amount(value) {
-  if (value === null) return '—';
-  if (value > 0 && value < .0001) return '<0.0001';
-  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-}
+import { formatAmount as amount } from '../format.js';
 
 export default function CostSummary({ costs, donationCost }) {
   return <section className="card cost-card" aria-labelledby="ticket-cost-title">

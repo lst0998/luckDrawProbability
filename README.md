@@ -18,19 +18,20 @@ Build the static site with `npm run build`; serve the build with `npm run previe
 - Adjustable per-draw win probability, your accounts, and draws per account. An optional cap on combined prizes is off by default.
 - Two separate graphs: bars for individual outcomes, and a cumulative line for **P(prizes ≥ X)**. For example, “2 or more prizes” includes exactly 2 prizes and every higher outcome. Cumulative probabilities are shown directly in the graph; there is no target input.
 - Cost per donation, total donation cost, expected tickets (2 per prize), and theoretical cost per ticket. One donation is one draw; all planned donations are charged.
+- A separate interactive cost-by-wins curve: total donation cost divided by (wins × 2), with a zero-win explanation and keyboard/touch exploration.
 - Expected prize count, chance of winning 1 or more prizes, and a central 90% outcome interval.
-- Equal-draw-budget account comparisons, repeatable simulations, and CSV download including scenario settings and seed.
+- Calculated equal-draw-budget account comparisons and CSV download including scenario settings, probabilities, and costs at every win count.
 - Responsive layout, keyboard-accessible chart tooltips, reduced-motion support, and cancellable worker calculations.
 
 ## Probability model
 
 The supplied probability p is the actual chance of receiving a prize on each draw, while the account has not yet won. Competition is already reflected in p, so there are no competitor inputs or additional allocation step. Each account wins with probability `q = 1 - (1 - p)^draws`, with a maximum of one prize per account. Total wins follow `X ~ Binomial(accounts, q)`.
 
-With 5% per draw, 10 draws per account, and 20 accounts, each account has a 40.1263% chance of winning and the mathematical expectation is 8.0253 prizes. The simulated average may differ slightly.
+With 5% per draw, 10 draws per account, and 20 accounts, each account has a 40.1263% chance of winning and the mathematical expectation is 8.0253 prizes.
 
 The optional prize limit is off by default. If explicitly enabled, the result is `Y = min(X, maximumPrizes)`; this combines all higher outcomes at the cap. A disabled cap never affects results, even when its saved count is zero. This is only a ceiling on combined winnings. It does not model a shared pool being exhausted by other participants or changing draw odds.
 
-Results use 10,000 Monte Carlo rounds (comparisons use 5,000), so they are estimates. The cumulative line is the inclusive tail P(Y >= X). Chart labels, tooltips, summary cards, and the CSV column `probability_x_or_more` all include the threshold itself. The plotted domain ends at the last observed outcome (at least 0–4 where possible); larger counts group neighboring outcomes into labeled bins. Zero observations do not prove impossibility, and a simulated 100% does not guarantee success. Percentages retain two decimal places, with inequalities for positive probabilities too close to 0 or 1 to display accurately. The 90% outcome interval differs from the 95% Wilson confidence interval reported for the estimated chance of winning 1 or more prizes. Integer inputs are bounded to 1,000 own accounts, 20,000 prizes, and 10,000 draws per account; zero is allowed.
+All probabilities and strategy comparisons are calculated directly from the binomial probability mass function, with no simulations or random sampling. The recurrence starts at the mode and normalizes, avoiding whole-distribution underflow for large populations. The cumulative line is the inclusive tail P(Y >= X), summed from the highest count down to retain very small probabilities. Chart labels, tooltips, summary cards, and the CSV column `probability_x_or_more` all include the threshold itself. The plotted domain ends at the last positive probability (at least 0–4 where possible); larger counts group neighboring outcomes into labeled bins. Values use floating-point arithmetic and extremely small probabilities may underflow. Percentages retain two decimal places, with inequalities for positive probabilities too close to 0 or 1 to display accurately. The likely range spans the 5th–95th percentiles of the outcome distribution; discrete outcomes may cover more than 90% probability. Integer inputs are bounded to 1,000 accounts, 20,000 prizes, and 10,000 draws per account; zero is allowed.
 
 ## Theoretical cost per ticket
 
@@ -40,7 +41,9 @@ Results use 10,000 Monte Carlo rounds (comparisons use 5,000), so they are estim
 
 `theoretical cost per ticket = total donation cost / expected tickets`
 
-Expected prizes are calculated from the binomial distribution, including the optional cap, without Monte Carlo noise. This is long-run spending divided by expected ticket yield, not the average of per-round ratios (some rounds can yield zero tickets). No expected tickets is displayed as “— / No tickets expected”; free donations with positive expected yield cost zero per ticket. All amounts use the user’s input currency or units, with a default donation cost of 1.
+Expected prizes are calculated from the binomial distribution, including the optional cap, using the same direct calculation as the probability charts. This is long-run spending divided by expected ticket yield, not the average of per-outcome ratios (some outcomes yield zero tickets). No expected tickets is displayed as “— / No tickets expected”; free donations with positive expected yield cost zero per ticket. All amounts use the user’s input currency or units, with a default donation cost of 1.
+
+The separate cost graph shows `total donation cost / (2 × wins)` for each positive integer win count up to the account/prize limit. It shows hypothetical costs even when an outcome has zero probability; the tooltip includes that outcome’s calculated chance. Zero wins yields zero tickets, so no finite cost per ticket is plotted. The curve and CSV preserve every integer outcome, and hover, touch, or arrow keys select a count. The graph is distinct from the summary ratio of spending to expected ticket yield.
 
 ## Validation
 
