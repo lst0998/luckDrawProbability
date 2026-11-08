@@ -135,3 +135,39 @@ test('chart keeps the certain outcome for zero, full, and capped wins', () => {
     assert.equal(view.omittedProbability,0);
   }
 });
+
+test('cost chart excludes outcomes below 0.1% and retains exactly 0.1%', () => {
+  const costs={costByWins:[
+    {wins:0,probability:.997,costPerTicket:null},
+    {wins:1,probability:.0009999,costPerTicket:150},
+    {wins:2,probability:.001,costPerTicket:75},
+    {wins:3,probability:.0010001,costPerTicket:50},
+  ]};
+  const original=structuredClone(costs);
+  assert.deepEqual(chart.visibleCostOutcomes(costs),costs.costByWins.slice(2));
+  assert.deepEqual(costs,original);
+  const atCutoff=model.theoreticalCosts({...base,accounts:1,draws:1,probability:.1},30);
+  assert.equal(chart.visibleCostOutcomes(atCutoff).length,1);
+  const belowCutoff=model.theoreticalCosts({...base,accounts:1,draws:1,probability:.0999999},30);
+  assert.deepEqual(chart.visibleCostOutcomes(belowCutoff),[]);
+});
+test('filtering cost points preserves theoretical expectations and full outcome data', () => {
+  const costs=model.theoreticalCosts(base,30);
+  const visible=chart.visibleCostOutcomes(costs);
+  assert.ok(visible.length<costs.costByWins.length-1);
+  assert.ok(visible.every(row=>row.probability>=.001 && row.wins>0));
+  close(costs.costPerTicket,6000/(40*(1-.95**10)));
+  assert.equal(costs.costByWins.length,21);
+  const rare=model.theoreticalCosts({...base,accounts:1,draws:1,probability:.05},30);
+  assert.deepEqual(chart.visibleCostOutcomes(rare),[]);
+  close(rare.costPerTicket,30000);
+});
+test('cost filter handles certainty, optional caps, and no possible wins', () => {
+  for(const [patch,wins] of [[{probability:100},20],[{probability:100,limitPrizes:true,prizes:3},3]]) {
+    const visible=chart.visibleCostOutcomes(model.theoreticalCosts({...base,...patch},30));
+    assert.equal(visible.length,1);
+    assert.equal(visible[0].wins,wins);
+    assert.equal(visible[0].probability,1);
+  }
+  assert.deepEqual(chart.visibleCostOutcomes(model.theoreticalCosts({...base,probability:0},30)),[]);
+});

@@ -17,3 +17,12 @@ export function visibleOutcomes(result) {
   }
   return { points, omittedProbability: lowerTail + upperTail, trimmed: first > 0 || last < probabilities.length - 1 };
 }
+
+export const COST_CHANCE_THRESHOLD = .001;
+
+export function visibleCostOutcomes(costs) {
+  // Normalizing the distribution can move an exact cutoff by a few floating-
+  // point steps. Keep that boundary without rounding displayed percentages.
+  const cutoff = COST_CHANCE_THRESHOLD * (1 - 16 * Number.EPSILON);
+  return costs.costByWins.filter(row => row.wins > 0 && row.probability >= cutoff);
+}

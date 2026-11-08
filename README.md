@@ -18,7 +18,7 @@ Build the static site with `npm run build`; serve the build with `npm run previe
 - Adjustable per-draw win probability, your accounts, and draws per account. An optional cap on combined prizes is off by default.
 - Two separate graphs: bars for individual outcomes, and a cumulative line for **P(prizes ≥ X)**. For example, “2 or more prizes” includes exactly 2 prizes and every higher outcome. Cumulative probabilities are shown directly in the graph; there is no target input.
 - Cost per donation, total donation cost, expected tickets (2 per prize), and theoretical cost per ticket. One donation is one draw; all planned donations are charged.
-- A separate interactive cost-by-wins curve: total donation cost divided by (wins × 2), with a zero-win explanation and keyboard/touch exploration.
+- A separate interactive cost-by-wins curve: total donation cost divided by (wins × 2), showing outcomes with at least 0.1% probability and a dashed theoretical-cost reference. Includes a zero-win explanation and keyboard/touch exploration.
 - Expected prize count, chance of winning 1 or more prizes, and a central 90% outcome interval.
 - Calculated equal-draw-budget account comparisons and CSV download including scenario settings, probabilities, and costs at every win count.
 - Responsive layout, keyboard-accessible chart tooltips, reduced-motion support, and cancellable worker calculations.
@@ -43,7 +43,7 @@ All probabilities and strategy comparisons are calculated directly from the bino
 
 Expected prizes are calculated from the binomial distribution, including the optional cap, using the same direct calculation as the probability charts. This is long-run spending divided by expected ticket yield, not the average of per-outcome ratios (some outcomes yield zero tickets). No expected tickets is displayed as “— / No tickets expected”; free donations with positive expected yield cost zero per ticket. All amounts use the user’s input currency or units, with a default donation cost of 30.
 
-The separate cost graph shows `total donation cost / (2 × wins)` for each positive integer win count up to the account/prize limit. It shows hypothetical costs even when an outcome has zero probability; the tooltip includes that outcome’s calculated chance. Zero wins yields zero tickets, so no finite cost per ticket is plotted. The curve and CSV preserve every integer outcome, and hover, touch, or arrow keys select a count. The graph is distinct from the summary ratio of spending to expected ticket yield.
+The separate cost graph shows `total donation cost / (2 × wins)` for positive integer win counts with probability at least 0.1%, within the account/prize limit. Lower-probability outcomes are hidden from the cost curve and its interactions. Exactly 0.1% remains visible. The labeled dashed reference is total donation cost divided by expected tickets, using every outcome, including those hidden by the cutoff. CSV exports also retain every outcome. If no positive outcome meets the cutoff, the graph shows an empty-state message while the theoretical value remains available. Zero wins yields zero tickets, so no finite cost per ticket is plotted. Hover, touch, or arrow keys select a visible count.
 
 ## Validation
 

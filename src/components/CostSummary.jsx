@@ -5,7 +5,7 @@ import { formatAmount as amount } from '../format.js';
 export default function CostSummary({ costs, donationCost }) {
   return <section className="card cost-card" aria-labelledby="ticket-cost-title">
     <div className="card-section-header">
-      <div><div className="eyebrow">DONATIONS → PRIZES → TICKETS</div><h2 id="ticket-cost-title">The theoretical cost of a ticket</h2></div>
+      <div><div className="eyebrow">DONATIONS → PRIZES → TICKETS</div><h2 id="ticket-cost-title">Theoretical cost per ticket</h2></div>
       <span className="ticket-rate"><Ticket size={14}/>{TICKETS_PER_PRIZE} tickets per prize</span>
     </div>
     <div className="cost-metrics">
