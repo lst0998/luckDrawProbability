@@ -1,7 +1,7 @@
-export const LIMITS = { probability: [0, 100], accounts: [0, 1000], draws: [0, 10000], prizes: [0, 20000], others: [0, 20000], otherDraws: [0, 10000] };
-export const DEFAULTS = { probability: 5, accounts: 20, draws: 10, prizes: 20, others: 100, otherDraws: 10 };
+export const LIMITS = { probability: [0, 100], accounts: [0, 1000], draws: [0, 10000], prizes: [0, 20000] };
+export const DEFAULTS = { probability: 5, accounts: 20, draws: 10, prizes: 20, limitPrizes: false };
 
-export function qualificationChance(percent, draws) {
+export function accountWinChance(percent, draws) {
   if (draws === 0 || percent === 0) return 0;
   if (percent === 100) return 1;
   return -Math.expm1(draws * Math.log1p(-percent / 100));
@@ -43,21 +43,6 @@ function sampleCDF(cdf, rng) {
   }
   return low;
 }
-export function sampleHypergeometric(population, successes, draws, rng) {
-  if (draws === 0 || successes === 0) return 0;
-  if (draws >= population) return successes;
-  if (successes === population) return draws;
-  // Symmetries keep the sampling loop small even with a large rival pool.
-  if (draws > population / 2) return successes - sampleHypergeometric(population, successes, population - draws, rng);
-  if (successes > population / 2) return draws - sampleHypergeometric(population, population - successes, draws, rng);
-  if (successes < draws) return sampleHypergeometric(population, draws, successes, rng);
-  let result = 0;
-  for (let i = 0; i < draws; i++) {
-    if (rng() < successes / population) { result++; successes--; }
-    population--;
-  }
-  return result;
-}
 export function summarize(histogram, trials) {
   let sum = 0, cumulative = 0;
   let low, high;
@@ -75,23 +60,21 @@ export function simulate(config, trials = 10000, seed = 42) {
     const value = config[key];
     if (!Number.isFinite(value) || value < min || value > max || (key !== 'probability' && !Number.isInteger(value))) throw new RangeError(`Invalid ${key}`);
   }
+  if (typeof config.limitPrizes !== 'boolean') throw new RangeError('Invalid limitPrizes');
   if (!Number.isInteger(trials) || trials < 1) throw new RangeError('Invalid trial count');
-  const { probability, accounts, draws, prizes, others, otherDraws } = config;
-  const ownChance = qualificationChance(probability, draws);
-  const rivalChance = qualificationChance(probability, otherDraws);
+  const { probability, accounts, draws, prizes, limitPrizes } = config;
+  const ownChance = accountWinChance(probability, draws);
   const ownCDF = binomialCDF(accounts, ownChance);
-  const rivalCDF = binomialCDF(others, rivalChance);
-  const histogram = new Array(Math.min(accounts, prizes) + 1).fill(0);
+  const cap = limitPrizes ? Math.min(accounts, prizes) : accounts;
+  const histogram = new Array(cap + 1).fill(0);
   const rng = seededRandom(seed);
   const recent = [];
   for (let i = 0; i < trials; i++) {
-    const own = sampleCDF(ownCDF, rng);
-    const rival = sampleCDF(rivalCDF, rng);
-    const won = sampleHypergeometric(own + rival, own, Math.min(prizes, own + rival), rng);
+    const won = Math.min(sampleCDF(ownCDF, rng), cap);
     histogram[won]++;
     if (i < 40) recent.push(won);
   }
-  return { ...summarize(histogram, trials), ownChance, rivalChance, recent };
+  return { ...summarize(histogram, trials), ownChance, recent };
 }
 export function strategies(config) {
   const budget = config.accounts * config.draws;

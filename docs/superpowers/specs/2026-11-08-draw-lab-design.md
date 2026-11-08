@@ -1,9 +1,7 @@
-# Lucky Draw Lab
+# Lucky Draw Lab — current model
 
-Build a responsive interactive website explaining prize outcomes across multiple accounts. User requirements: independent chance per draw, adjustable own accounts and draws per account, a shared finite prize pool, other participants, and one prize maximum per account. Cumulative probabilities (including winning more than one prize) belong directly in the graph, without a target control.
+The user clarified that the supplied per-draw probability is the actual chance of receiving a prize. This supersedes the original shared-pool allocation model. Remove competitor inputs and the second allocation step. Each account can win once: q = 1 − (1 − p)^draws; total wins follow a binomial distribution over the user’s accounts.
 
-Implementation decisions: React and Vite, local calculations in a worker, no backend or credentials. A calculator dashboard with purple distribution bars and a teal cumulative line, scenario controls, summary metrics, a repeated experiment, and equal-budget account comparisons. Show the user's example of 20 accounts × 10 draws initially.
+Keep the interactive graph with outcome probabilities and cumulative P(prizes > k), including winning more than one prize, without a configurable target. Preserve account-strategy comparisons, simulation, CSV export, and mobile support. Retain prize count as an explicitly optional ceiling on combined winnings, disabled by default; it is not a shared-pool exhaustion model.
 
-Model assumption: every account gets its allotted independent draws; an account qualifies if at least one succeeds. If more accounts qualify than prizes, select a uniformly random subset of qualified accounts. This is a round-end lottery; it does not model chronological prize depletion, fixed guaranteed winners, or changing draw odds. Other accounts use the same per-draw probability and have an independently adjustable draw count. Report Monte Carlo results as estimates; per-account qualification probability is exact. No external participant knowledge is implied.
-
-Approaches considered: exact independent binomial calculator is insufficient for the shared pool; exhaustive shared-pool enumeration grows too quickly; Monte Carlo with exact binomial and hypergeometric sampling supports responsive exploration and transparent uncertainty. Selected the latter as an implementation decision. No deployment requested.
+React/Vite remains the frontend, with independent binomial Monte Carlo simulations in a cancellable worker. No backend or credentials are required. Deployment uses the existing GitHub Pages branch and project subpath.

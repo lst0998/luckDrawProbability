@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChartNoAxesColumnIncreasing, TrendingDown } from 'lucide-react';
-const pct = x => `${(x * 100).toFixed(1)}%`;
+import { formatProbability as pct } from '../format.js';
 
 export default function OutcomeChart({ result }) {
   const [active, setActive] = useState(null);

@@ -27,15 +27,17 @@ export default function Controls({ config, onChange, onReset }) {
       <NumberField name="probability" label="Win probability per draw" value={config.probability} onChange={v => onChange('probability', v)} suffix="%" step={.5}/>
       <input className="slider" aria-label="Win probability slider" type="range" min="0" max="100" step=".5" value={config.probability} onChange={e => onChange('probability', Number(e.target.value))} style={{'--progress':`${config.probability}%`}}/>
       <div className="range-labels"><span>0%</span><span>50%</span><span>100%</span></div>
+      <p className="field-note">Your actual chance of receiving a prize on each draw, until that account wins.</p>
     </div>
     <div className="control-section"><div className="section-heading"><span className="step-number">02</span><h3>Your strategy</h3><Users size={15}/></div>
       {field('accounts', 'Your accounts')}{field('draws', 'Draws per account')}
       <div className="budget"><Ticket size={18}/><div><strong>{(config.accounts * config.draws).toLocaleString()}</strong><span>total draws</span></div><span className="budget-equation">{config.accounts.toLocaleString()} × {config.draws.toLocaleString()}</span></div>
       <p className="field-note"><Info size={12}/>Each account can win one prize, at most.</p>
     </div>
-    <div className="control-section"><div className="section-heading"><span className="step-number">03</span><h3>The shared pool</h3><Gift size={15}/></div>
-      {field('prizes', 'Available prizes')}{field('others', 'Other accounts')}{field('otherDraws', 'Draws per other account')}
-      <p className="field-note">Other accounts have the same chance per draw.</p>
+    <div className="control-section"><div className="section-heading"><span className="step-number">03</span><h3>Optional prize limit</h3><Gift size={15}/></div>
+      <label className="cap-toggle"><input type="checkbox" checked={config.limitPrizes} onChange={e => onChange('limitPrizes', e.target.checked)}/>Limit total prizes</label>
+      {config.limitPrizes && field('prizes', 'Maximum prizes')}
+      <p className="field-note">An optional ceiling on your combined winnings. Off by default; this does not model how a shared pool runs out.</p>
     </div>
     <div className="panel-footer"><span className="live-dot"/>Changes update your results automatically<ArrowRight size={13}/></div>
   </aside>;
