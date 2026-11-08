@@ -23,7 +23,7 @@ function ProbabilityPlot({ result, cumulative = false }) {
     for (let lo = 0; lo <= last; lo += width) {
       const hi = Math.min(last, lo + width - 1);
       const chance = result.histogram.slice(lo, hi + 1).reduce((a, b) => a + b, 0) / result.trials;
-      out.push({ lo, hi, chance, tail: result.moreThan[hi], label: lo === hi ? String(lo) : `${lo}–${hi}` });
+      out.push({ lo, hi, chance, tail: result.atLeast[hi], label: lo === hi ? String(lo) : `${lo}–${hi}` });
     }
     return out;
   }, [result, chartWidth]);
@@ -40,7 +40,7 @@ function ProbabilityPlot({ result, cumulative = false }) {
   const linePath = bins.map((b, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(b.tail)}`).join(' ');
   const areaPath = `${linePath} L ${x(bins.length - 1)} ${y(0)} L ${x(0)} ${y(0)} Z`;
   const outcomeLabel = bin => cumulative
-    ? `More than ${bin.hi} ${bin.hi === 1 ? 'prize' : 'prizes'}`
+    ? `${bin.hi} or more prizes`
     : `${bin.lo === bin.hi ? 'Exactly' : 'Between'} ${bin.label} ${bin.lo === 1 && bin.hi === 1 ? 'prize' : 'prizes'}`;
 
   return (
@@ -48,8 +48,8 @@ function ProbabilityPlot({ result, cumulative = false }) {
       <div className="chart-header">
         <div>
           <div className="eyebrow">{cumulative ? 'YOUR CUMULATIVE CHANCES' : 'YOUR POSSIBLE OUTCOMES'}</div>
-          <h2>{cumulative ? 'What are your chances of winning more?' : 'What could you win?'}</h2>
-          <p>{cumulative ? 'Add together every outcome above each prize count.' : 'The chance of each individual prize outcome.'}</p>
+          <h2>{cumulative ? 'Chance of winning X or more prizes' : 'What could you win?'}</h2>
+          <p>{cumulative ? 'Includes exactly X prizes and every higher outcome.' : 'The chance of each individual prize outcome.'}</p>
         </div>
         <span className="pill"><span className="live-dot"/>{result.trials.toLocaleString()} rounds</span>
       </div>
@@ -57,13 +57,13 @@ function ProbabilityPlot({ result, cumulative = false }) {
       <div className="chart-legend">
         <span className="chart-legend-label">
           <span className={cumulative ? 'legend-line' : 'legend-square'}/>
-          {cumulative ? 'Chance of winning more than this many prizes' : grouped ? 'Chance of prizes in this range' : 'Chance of winning exactly this many prizes'}
+          {cumulative ? 'Chance of winning X or more prizes' : grouped ? 'Chance of prizes in this range' : 'Chance of winning exactly this many prizes'}
         </span>
       </div>
 
       <div className="chart-wrap" ref={chartRef} onMouseLeave={() => setActive(null)}>
         <div className="axis-headings"><span>{cumulative ? 'Cumulative probability' : 'Individual probability'}</span></div>
-        <svg className="outcome-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={cumulative ? 'Cumulative chance of winning more than each prize count' : 'Probability of each individual prize outcome'}>
+        <svg className="outcome-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={cumulative ? 'Cumulative probability of winning X or more prizes' : 'Probability of each individual prize outcome'}>
           <defs>
             {cumulative ? <linearGradient id="cumulativeFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3a9c83" stopOpacity=".13"/><stop offset="100%" stopColor="#3a9c83" stopOpacity=".02"/></linearGradient>
               : <linearGradient id="barFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8f78e7"/><stop offset="100%" stopColor="#b5a3ee"/></linearGradient>}
@@ -91,18 +91,18 @@ function ProbabilityPlot({ result, cumulative = false }) {
         </svg>
         {current && <div className="chart-tooltip" role="status" style={{ left: `${Math.max(18, Math.min(80, x(active) / W * 100))}%` }}>
           <strong>{outcomeLabel(current)}</strong>
-          <span><i className={cumulative ? 'green-dot' : 'purple-dot'}/>{cumulative ? `${current.hi + 1} or more prizes` : 'Chance of this outcome'}<b>{pct(cumulative ? current.tail : current.chance)}</b></span>
+          <span><i className={cumulative ? 'green-dot' : 'purple-dot'}/>{cumulative ? 'Cumulative chance' : 'Chance of this outcome'}<b>{pct(cumulative ? current.tail : current.chance)}</b></span>
         </div>}
-        <div className="x-axis-title">{cumulative ? 'Win more than this many prizes' : 'Number of prizes you win'}</div>
+        <div className="x-axis-title">{cumulative ? 'Number of prizes (X or more)' : 'Number of prizes you win'}</div>
       </div>
 
       {cumulative && <div className="cumulative-strip">
         <div className="cumulative-label"><TrendingDown size={17}/><span>YOUR CUMULATIVE CHANCES</span></div>
-        {[0, 1, 2].map(k => <div key={k}><span>More than {k} {k === 1 ? 'prize' : 'prizes'}</span><strong>{pct(result.moreThan[k] ?? 0)}</strong></div>)}
+        {[1, 2, 3].map(k => <div key={k}><span>{k} or more prizes</span><strong>{pct(result.atLeast[k] ?? 0)}</strong></div>)}
       </div>}
       <p className="chart-caption">
         {cumulative ? <TrendingDown size={13}/> : <ChartNoAxesColumnIncreasing size={13}/>}
-        {cumulative ? '“More than 1” adds the chances of winning 2, 3, 4… prizes.' : grouped ? 'Each bar combines the outcomes in its labeled range.' : 'Each bar shows one outcome, without adding other prize counts.'}
+        {cumulative ? '“2 or more prizes” adds the chances of winning exactly 2, 3, 4… prizes.' : grouped ? 'Each bar combines the outcomes in its labeled range.' : 'Each bar shows one outcome, without adding other prize counts.'}
         {' '}Hover, tap, or focus a point to explore.
       </p>
     </section>

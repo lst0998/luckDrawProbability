@@ -1,4 +1,6 @@
 export const LIMITS = { probability: [0, 100], accounts: [0, 1000], draws: [0, 10000], prizes: [0, 20000] };
+export const COST_LIMITS = [0, 1000000];
+export const TICKETS_PER_PRIZE = 2;
 export const DEFAULTS = { probability: 5, accounts: 20, draws: 10, prizes: 20, limitPrizes: false };
 
 export function accountWinChance(percent, draws) {
@@ -18,7 +20,7 @@ export function seededRandom(seed) {
 }
 // Start at the mode, then normalize. Unlike a recurrence from P(0), this
 // does not underflow the entire distribution for large populations.
-export function binomialCDF(n, p) {
+function binomialMass(n, p) {
   const mass = new Float64Array(n + 1);
   if (p === 0 || n === 0) mass[0] = 1;
   else if (p === 1) mass[n] = 1;
@@ -29,8 +31,12 @@ export function binomialCDF(n, p) {
     for (let k = mode; k < n; k++) mass[k + 1] = mass[k] * (n - k) / (k + 1) * p / (1 - p);
   }
   const total = mass.reduce((a, b) => a + b, 0);
+  return mass.map(value => value / total);
+}
+export function binomialCDF(n, p) {
+  const mass = binomialMass(n, p);
   let cumulative = 0;
-  for (let k = 0; k <= n; k++) { cumulative += mass[k] / total; mass[k] = Math.min(1, cumulative); }
+  for (let k = 0; k <= n; k++) { cumulative += mass[k]; mass[k] = Math.min(1, cumulative); }
   mass[n] = 1;
   return mass;
 }
@@ -46,21 +52,25 @@ function sampleCDF(cdf, rng) {
 export function summarize(histogram, trials) {
   let sum = 0, cumulative = 0;
   let low, high;
-  const moreThan = histogram.map((count, k) => {
+  const atLeast = histogram.map((count, k) => {
     sum += k * count;
     cumulative += count;
     if (low === undefined && cumulative >= trials * .05) low = k;
     if (high === undefined && cumulative >= trials * .95) high = k;
-    return (trials - cumulative) / trials;
+    // Keep the outcome at k: cumulative probabilities mean P(prizes >= k).
+    return (trials - cumulative + count) / trials;
   });
-  return { histogram, trials, moreThan, expected: sum / trials, range: [low ?? 0, high ?? 0] };
+  return { histogram, trials, atLeast, expected: sum / trials, range: [low ?? 0, high ?? 0] };
 }
-export function simulate(config, trials = 10000, seed = 42) {
+function validateConfig(config) {
   for (const [key, [min, max]] of Object.entries(LIMITS)) {
     const value = config[key];
     if (!Number.isFinite(value) || value < min || value > max || (key !== 'probability' && !Number.isInteger(value))) throw new RangeError(`Invalid ${key}`);
   }
   if (typeof config.limitPrizes !== 'boolean') throw new RangeError('Invalid limitPrizes');
+}
+export function simulate(config, trials = 10000, seed = 42) {
+  validateConfig(config);
   if (!Number.isInteger(trials) || trials < 1) throw new RangeError('Invalid trial count');
   const { probability, accounts, draws, prizes, limitPrizes } = config;
   const ownChance = accountWinChance(probability, draws);
@@ -90,4 +100,25 @@ export function wilsonInterval(successes, trials) {
   const center = (p + z * z / (2 * trials)) / denominator;
   const radius = z * Math.sqrt(p * (1 - p) / trials + z * z / (4 * trials * trials)) / denominator;
   return [Math.max(0, center - radius), Math.min(1, center + radius)];
+}
+
+// Exact expectation for the ticket-cost calculation; independent of simulation seed.
+export function theoreticalCosts(config, donationCost) {
+  validateConfig(config);
+  if (!Number.isFinite(donationCost) || donationCost < COST_LIMITS[0] || donationCost > COST_LIMITS[1]) {
+    throw new RangeError('Invalid donation cost');
+  }
+  const { accounts, draws, probability, limitPrizes, prizes } = config;
+  const q = accountWinChance(probability, draws);
+  let expectedPrizes = accounts * q;
+  if (limitPrizes && prizes < accounts) {
+    expectedPrizes = prizes === 0 ? 0 : binomialMass(accounts, q).reduce((sum, mass, wins) => sum + Math.min(wins, prizes) * mass, 0);
+  }
+  const totalDonations = accounts * draws;
+  const totalCost = totalDonations * donationCost;
+  const expectedTickets = expectedPrizes * TICKETS_PER_PRIZE;
+  return {
+    totalDonations, totalCost, expectedPrizes, expectedTickets,
+    costPerTicket: expectedTickets > 0 ? totalCost / expectedTickets : null,
+  };
 }

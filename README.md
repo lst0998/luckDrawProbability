@@ -16,8 +16,9 @@ Build the static site with `npm run build`; serve the build with `npm run previe
 ## Features
 
 - Adjustable per-draw win probability, your accounts, and draws per account. An optional cap on combined prizes is off by default.
-- Two separate graphs: bars for individual outcomes, and a cumulative line for **P(prizes > k)**. For example, “more than 1” includes all outcomes of 2 or more prizes. Cumulative probabilities are shown directly in the graph; there is no target input.
-- Expected prize count, chance of at least one prize, and a central 90% outcome interval.
+- Two separate graphs: bars for individual outcomes, and a cumulative line for **P(prizes ≥ X)**. For example, “2 or more prizes” includes exactly 2 prizes and every higher outcome. Cumulative probabilities are shown directly in the graph; there is no target input.
+- Cost per donation, total donation cost, expected tickets (2 per prize), and theoretical cost per ticket. One donation is one draw; all planned donations are charged.
+- Expected prize count, chance of winning 1 or more prizes, and a central 90% outcome interval.
 - Equal-draw-budget account comparisons, repeatable simulations, and CSV download including scenario settings and seed.
 - Responsive layout, keyboard-accessible chart tooltips, reduced-motion support, and cancellable worker calculations.
 
@@ -29,7 +30,17 @@ With 5% per draw, 10 draws per account, and 20 accounts, each account has a 40.1
 
 The optional prize limit is off by default. If explicitly enabled, the result is `Y = min(X, maximumPrizes)`; this combines all higher outcomes at the cap. A disabled cap never affects results, even when its saved count is zero. This is only a ceiling on combined winnings. It does not model a shared pool being exhausted by other participants or changing draw odds.
 
-Results use 10,000 Monte Carlo rounds (comparisons use 5,000), so they are estimates. The cumulative line is the survival function, not P(Y <= k). The plotted domain ends at the last observed outcome (at least 0–4 where possible); larger counts group neighboring outcomes into labeled bins. Zero observations do not prove impossibility, and a simulated 100% does not guarantee success. Percentages retain two decimal places, with inequalities for positive probabilities too close to 0 or 1 to display accurately. The 90% outcome interval differs from the 95% Wilson confidence interval reported for the estimated chance of at least one win. Integer inputs are bounded to 1,000 own accounts, 20,000 prizes, and 10,000 draws per account; zero is allowed.
+Results use 10,000 Monte Carlo rounds (comparisons use 5,000), so they are estimates. The cumulative line is the inclusive tail P(Y >= X). Chart labels, tooltips, summary cards, and the CSV column `probability_x_or_more` all include the threshold itself. The plotted domain ends at the last observed outcome (at least 0–4 where possible); larger counts group neighboring outcomes into labeled bins. Zero observations do not prove impossibility, and a simulated 100% does not guarantee success. Percentages retain two decimal places, with inequalities for positive probabilities too close to 0 or 1 to display accurately. The 90% outcome interval differs from the 95% Wilson confidence interval reported for the estimated chance of winning 1 or more prizes. Integer inputs are bounded to 1,000 own accounts, 20,000 prizes, and 10,000 draws per account; zero is allowed.
+
+## Theoretical cost per ticket
+
+`total donation cost = accounts × draws per account × cost per donation`
+
+`expected tickets = 2 × expected prizes`
+
+`theoretical cost per ticket = total donation cost / expected tickets`
+
+Expected prizes are calculated from the binomial distribution, including the optional cap, without Monte Carlo noise. This is long-run spending divided by expected ticket yield, not the average of per-round ratios (some rounds can yield zero tickets). No expected tickets is displayed as “— / No tickets expected”; free donations with positive expected yield cost zero per ticket. All amounts use the user’s input currency or units, with a default donation cost of 1.
 
 ## Validation
 
