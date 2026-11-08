@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as model from '../src/model.js';
+import * as chart from '../src/chart-data.js';
 const base = { probability: 5, accounts: 20, draws: 10, prizes: 20, limitPrizes: false };
 const close = (actual, expected, tolerance = 1e-10) => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} should be near ${expected}`);
 
@@ -102,4 +103,35 @@ test('zero wins has no finite ticket cost, while free donations with wins cost z
 test('invalid inputs are rejected', () => {
   for(const patch of [{accounts:-1},{probability:NaN},{limitPrizes:'false'}]) assert.throws(()=>model.calculate({...base,...patch}));
   for(const cost of [-1,NaN,Infinity,1000001]) assert.throws(()=>model.theoreticalCosts(base,cost));
+});
+
+
+test('chart trims negligible tails without grouping or renormalizing outcomes', () => {
+  const result={probabilities:[.000001,.4,.599998,.000001],atLeast:[1,.999999,.599999,.000001]};
+  const snapshot=structuredClone(result);
+  const view=chart.visibleOutcomes(result);
+  assert.deepEqual(view.points,[{wins:1,chance:.4,tail:.999999},{wins:2,chance:.599998,tail:.599999}]);
+  close(view.omittedProbability,.000002);
+  assert.equal(view.trimmed,true);
+  assert.deepEqual(result,snapshot);
+});
+test('high account counts keep consecutive individual wins and at least 99.99% of probability', () => {
+  const result=model.calculate({...base,accounts:1000,probability:50,draws:1});
+  const view=chart.visibleOutcomes(result);
+  assert.ok(view.points.length>100 && view.points.length<200);
+  assert.ok(view.points[0].wins>0 && view.points.at(-1).wins<1000);
+  assert.ok(view.omittedProbability<.0001);
+  assert.ok(view.points.reduce((sum,row)=>sum+row.chance,0)>.9999);
+  view.points.forEach((row,i)=>{
+    assert.equal(row.wins,view.points[0].wins+i);
+    assert.equal(row.chance,result.probabilities[row.wins]);
+    assert.equal(row.tail,result.atLeast[row.wins]);
+  });
+});
+test('chart keeps the certain outcome for zero, full, and capped wins', () => {
+  for(const [patch,wins] of [[{accounts:0},0],[{probability:0},0],[{probability:100},20],[{probability:100,limitPrizes:true,prizes:3},3]]) {
+    const view=chart.visibleOutcomes(model.calculate({...base,...patch}));
+    assert.deepEqual(view.points,[{wins,chance:1,tail:1}]);
+    assert.equal(view.omittedProbability,0);
+  }
 });

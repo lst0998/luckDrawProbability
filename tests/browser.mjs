@@ -37,6 +37,29 @@ try {
   assert.equal(await cumulativeChart.getByText('2 or more prizes',{exact:true}).count(),1);
   assert.ok((await cumulativeChart.locator('.cumulative-strip').innerText()).includes('99.95%'),'High cumulative chances must not round to certainty');
   console.log('PASS independent outcome and inclusive X-or-more graphs');
+  assert.ok((await page.locator('.cost-card').boundingBox()).y >= (await cumulativeChart.boundingBox()).y + (await cumulativeChart.boundingBox()).height,'Cost summary must follow both probability graphs');
+  assert.ok((await page.locator('#cost-by-wins').boundingBox()).y > (await page.locator('.cost-card').boundingBox()).y,'Cost graph must follow its summary');
+  await field('accounts',1000);
+  await field('draws',1);
+  await field('probability',50);
+  for(const chart of [individualChart,cumulativeChart]) {
+    const labels=await chart.locator('.x-label').allTextContents();
+    assert.ok(labels.length>100 && labels.length<200,'Only negligible tails should be trimmed');
+    labels.forEach((label,i)=>{
+      assert.match(label,/^\d+$/,'Each label must be one integer, never a range');
+      if(i) assert.equal(Number(label),Number(labels[i-1])+1,'Every retained integer must be represented');
+    });
+    assert.ok(await chart.locator('.probability-scroll').evaluate(el=>el.scrollWidth>el.clientWidth),'Wide plots should scroll without combining outcomes');
+    assert.match(await chart.locator('.chart-domain-note').innerText(),/Hidden tails: <0.01%/);
+  }
+  await individualChart.getByRole('button',{name:'Exactly 500 prizes: 2.52%',exact:true}).hover();
+  assert.match(await individualChart.locator('.chart-tooltip').innerText(),/Exactly 500 prizes/);
+  await cumulativeChart.getByRole('button',{name:'500 or more prizes: 51.26%',exact:true}).hover();
+  assert.match(await cumulativeChart.locator('.chart-tooltip').innerText(),/51.26%/);
+  await individualChart.screenshot({path:'/tmp/lucky-lab-high-accounts.png'});
+  await page.getByRole('button',{name:'Reset to example',exact:true}).click();
+  await ready();
+  console.log('PASS individual integers at high account counts, accurate tooltips and costs below probability graphs');
   const costNumber=async()=>Number((await page.getByTestId('cost-per-ticket').innerText()).replaceAll(',',''));
   const baseTicketCost=await costNumber();
   assert.ok(Math.abs(baseTicketCost - 200/(40*(1-.95**10))) < .0001);
@@ -161,6 +184,20 @@ try {
   assert.ok(await page.locator('#outcomes .outcome-chart').isVisible());
   assert.ok(await page.locator('#cumulative-outcomes .outcome-chart').isVisible());
   console.log('PASS mobile layout and interactions');
+  await field('accounts',1000);
+  const mobileLabels=await individualChart.locator('.x-label').allTextContents();
+  assert.ok(mobileLabels.length>25);
+  assert.ok(mobileLabels.every((label,i)=>/^\d+$/.test(label) && (i===0 || Number(label)===Number(mobileLabels[i-1])+1)));
+  await individualChart.getByRole('button').last().focus();
+  await page.keyboard.press('Enter');
+  assert.ok(await individualChart.locator('.chart-tooltip').isVisible());
+  const tooltipBox=await individualChart.locator('.chart-tooltip').boundingBox();
+  const chartBox=await individualChart.boundingBox();
+  assert.ok(tooltipBox.x>=chartBox.x && tooltipBox.x+tooltipBox.width<=chartBox.x+chartBox.width,'Edge tooltip must remain fully inside the mobile card');
+  assert.ok(await individualChart.locator('.probability-scroll').evaluate(el=>el.scrollLeft>0));
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Scrollable charts must not widen the mobile page');
+  await individualChart.screenshot({path:'/tmp/lucky-lab-high-accounts-mobile.png'});
+  console.log('PASS mobile high-account integers and keyboard scrolling');
   const touchPage = await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
   touchPage.on('pageerror', e=>errors.push(e.message));
   await touchPage.goto(process.env.APP_URL || 'http://127.0.0.1:5173');
