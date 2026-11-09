@@ -73,6 +73,56 @@ test('equal budget strategies preserve all draws', () => {
   assert.ok(rows.some(r=>r.accounts===20 && r.draws===10));
   rows.forEach(r=>assert.equal(r.accounts*r.draws,200));
 });
+test('applying a calculator limits the strategy to the total draw pool', () => {
+  const config=model.applyCalculator({...base,accounts:2000},model.ESTIMATOR_DEFAULTS);
+  assert.equal(config.poolDrawLimit,2000);
+  assert.equal(config.accounts,200);
+  assert.equal(config.draws,10);
+  assert.equal(config.probability,5);
+  assert.equal(config.prizes,100);
+  assert.equal(config.limitPrizes,true);
+  assert.equal(model.theoreticalCosts(config,30).totalDonations,2000);
+  assert.deepEqual(model.strategyLimits(config),{accounts:[0,200],draws:[0,10]});
+  assert.throws(()=>model.calculate({...config,accounts:201}));
+  assert.throws(()=>model.calculate({...config,draws:11}));
+  for(const row of model.strategies(config)) {
+    assert.equal(row.accounts*row.draws,2000);
+    assert.doesNotThrow(()=>model.calculate({...config,...row}));
+  }
+});
+test('draw pool limits preserve valid strategies and handle small or fractional pools', () => {
+  const valid=model.applyCalculator(base,model.ESTIMATOR_DEFAULTS);
+  assert.equal(valid.accounts,20);
+  assert.equal(valid.draws,10);
+  assert.deepEqual(model.strategyLimits(valid),{accounts:[0,200],draws:[0,100]});
+  const tiny=model.applyCalculator(base,{totalOrders:5,drawsPerOrder:1,totalPrizes:1});
+  assert.equal(tiny.accounts,1);
+  assert.equal(tiny.draws,5);
+  const fractional=model.applyCalculator({...base,accounts:100,draws:1},{totalOrders:100,drawsPerOrder:.29,totalPrizes:1});
+  assert.equal(fractional.poolDrawLimit,29);
+  assert.equal(fractional.accounts,29);
+  const subDraw=model.applyCalculator(base,{totalOrders:1,drawsPerOrder:.75,totalPrizes:1});
+  assert.equal(subDraw.poolDrawLimit,0);
+  assert.equal(subDraw.accounts*subDraw.draws,0);
+  assert.equal(model.calculate(subDraw).expected,0);
+  assert.throws(()=>model.applyCalculator(base,{totalOrders:0,drawsPerOrder:2,totalPrizes:1}));
+});
+test('draw pool constraints handle zero strategies, large pools and manual entry', () => {
+  for(const patch of [{accounts:0},{draws:0}]) {
+    const config=model.applyCalculator({...base,...patch},model.ESTIMATOR_DEFAULTS);
+    assert.equal(config.accounts,({...base,...patch}).accounts);
+    assert.equal(config.draws,({...base,...patch}).draws);
+    assert.equal(model.calculate(config).expected,0);
+  }
+  const large=model.applyCalculator(base,{totalOrders:1000000000,drawsPerOrder:10000,totalPrizes:100});
+  assert.equal(large.poolDrawLimit,10000000000000);
+  assert.equal(large.accounts,base.accounts);
+  assert.deepEqual(model.strategyLimits(base),{accounts:model.LIMITS.accounts,draws:model.LIMITS.draws});
+  assert.doesNotThrow(()=>model.calculate({...base,accounts:10000,poolDrawLimit:null}));
+  for(const poolDrawLimit of [-1,1.5,Infinity,10000000000001,100]) {
+    assert.throws(()=>model.calculate({...base,poolDrawLimit}));
+  }
+});
 test('200 to 2000 accounts increases expected wins tenfold when uncapped', () => {
   const small=model.calculate({...base,accounts:200});
   const large=model.calculate({...base,accounts:2000});

@@ -1,7 +1,7 @@
 export const LIMITS = { probability: [0, 100], accounts: [0, 10000], draws: [0, 10000], prizes: [0, 1000000000] };
 export const COST_LIMITS = [0, 1000000];
 export const TICKETS_PER_PRIZE = 2;
-export const DEFAULTS = { probability: 5, accounts: 20, draws: 10, prizes: 20, limitPrizes: false };
+export const DEFAULTS = { probability: 5, accounts: 20, draws: 10, prizes: 20, limitPrizes: false, poolDrawLimit: null };
 export const ESTIMATOR_DEFAULTS = { totalOrders: 1000, drawsPerOrder: 2, totalPrizes: 100 };
 export const ESTIMATOR_LIMITS = { totalOrders: [0, 1000000000], drawsPerOrder: [0, 10000], totalPrizes: LIMITS.prizes };
 
@@ -23,6 +23,36 @@ export function estimateWinProbability(inputs) {
     probabilityPercent: basisPoints === null ? null : Math.round(basisPoints + 4 * Number.EPSILON * basisPoints) / 100,
     capped: totalDraws > 0 && inputs.totalPrizes > totalDraws,
   };
+}
+
+// Multiply the entered decimal coefficient exactly before flooring to whole
+// draws, so e.g. 100 × 0.29 permits 29 draws despite binary floating-point error.
+function wholeDrawPool({ totalOrders, drawsPerOrder }) {
+  const [mantissa, exponent = '0'] = String(drawsPerOrder).split('e');
+  const decimals = mantissa.split('.')[1]?.length ?? 0;
+  const product = BigInt(totalOrders) * BigInt(mantissa.replace('.', ''));
+  const shift = Number(exponent) - decimals;
+  return Number(shift >= 0 ? product * 10n ** BigInt(shift) : product / 10n ** BigInt(-shift));
+}
+
+export function strategyLimits(config) {
+  const bound = (name, other) => [0, config.poolDrawLimit == null || other === 0
+    ? LIMITS[name][1] : Math.min(LIMITS[name][1], Math.floor(config.poolDrawLimit / other))];
+  return { accounts: bound('accounts', config.draws), draws: bound('draws', config.accounts) };
+}
+
+export function applyCalculator(config, inputs) {
+  validateConfig(config);
+  const estimate = estimateWinProbability(inputs);
+  if (estimate.probabilityPercent === null) throw new RangeError('No draw pool available');
+  const poolDrawLimit = wholeDrawPool(inputs);
+  let { accounts, draws } = config;
+  if (accounts * draws > poolDrawLimit) {
+    draws = Math.min(draws, poolDrawLimit);
+    if (draws > 0) accounts = Math.min(accounts, Math.floor(poolDrawLimit / draws));
+  }
+  return { ...config, accounts, draws, probability: estimate.probabilityPercent,
+    prizes: inputs.totalPrizes, limitPrizes: true, poolDrawLimit };
 }
 
 export function accountWinChance(percent, draws) {
@@ -51,6 +81,11 @@ function validateConfig(config) {
     if (!Number.isFinite(value) || value < min || value > max || (key !== 'probability' && !Number.isInteger(value))) throw new RangeError(`Invalid ${key}`);
   }
   if (typeof config.limitPrizes !== 'boolean') throw new RangeError('Invalid limitPrizes');
+  if (config.poolDrawLimit != null) {
+    const maxPool = ESTIMATOR_LIMITS.totalOrders[1] * ESTIMATOR_LIMITS.drawsPerOrder[1];
+    if (!Number.isSafeInteger(config.poolDrawLimit) || config.poolDrawLimit < 0 || config.poolDrawLimit > maxPool) throw new RangeError('Invalid pool draw limit');
+    if (config.accounts * config.draws > config.poolDrawLimit) throw new RangeError('Strategy exceeds the total draw pool');
+  }
 }
 export function calculate(config) {
   validateConfig(config);

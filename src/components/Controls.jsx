@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Minus, Plus, SlidersHorizontal, Users, Ticket, Gift, RotateCcw, ArrowRight, Info, PencilLine, Calculator } from 'lucide-react';
-import { LIMITS, COST_LIMITS } from '../model.js';
+import { LIMITS, COST_LIMITS, strategyLimits } from '../model.js';
 
 export function NumberField({ label, value, onChange, name, suffix, step = 1, limits, allowDecimals = false, disabled = false, resetVersion = 0 }) {
   const [draft, setDraft] = useState(String(value));
@@ -17,7 +17,7 @@ export function NumberField({ label, value, onChange, name, suffix, step = 1, li
     setDraft(String(value));
     setLimitNotice(notice => notice?.value === value ? notice : null);
   }, [value, resetVersion]);
-  useEffect(() => setLimitNotice(null), [resetVersion]);
+  useEffect(() => setLimitNotice(null), [resetVersion, min, max]);
   const update = (raw) => {
     setDraft(raw);
     setLimitNotice(null);
@@ -41,6 +41,7 @@ export function NumberField({ label, value, onChange, name, suffix, step = 1, li
 }
 export default function Controls({ config, onChange, onReset, donationCost, onCostChange, winningChanceCalculator, resetVersion }) {
   const [method, setMethod] = useState('direct');
+  const strategyBounds = strategyLimits(config);
   const switchWithKeyboard = event => {
     const next = { ArrowLeft: method === 'direct' ? 'calculate' : 'direct', ArrowRight: method === 'direct' ? 'calculate' : 'direct', Home: 'direct', End: 'calculate' }[event.key];
     if (!next) return;
@@ -64,10 +65,11 @@ export default function Controls({ config, onChange, onReset, donationCost, onCo
       <div className="chance-method-panel" id="probability-panel-calculate" role="tabpanel" aria-labelledby="probability-tab-calculate" hidden={method !== 'calculate'}>{winningChanceCalculator}</div>
     </div>
     <div className="control-section"><div className="section-heading"><span className="step-number">02</span><h3>Your strategy</h3><Users size={15}/></div>
-      {field('accounts', 'Your accounts')}{field('draws', 'Draws per account')}
+      {field('accounts', 'Your accounts', { limits: strategyBounds.accounts })}{field('draws', 'Draws per account', { limits: strategyBounds.draws })}
       <NumberField name="donationCost" label="Cost per donation" value={donationCost} onChange={onCostChange} step={.01} limits={COST_LIMITS} resetVersion={resetVersion}/>
       <p className="field-note">One donation = one draw. Each prize contains 2 tickets.</p>
       <div className="budget"><Ticket size={18}/><div><strong>{(config.accounts * config.draws).toLocaleString()}</strong><span>total draws</span></div><span className="budget-equation">{config.accounts.toLocaleString()} × {config.draws.toLocaleString()}</span></div>
+      {config.poolDrawLimit != null && <p className="field-note" data-testid="strategy-draw-limit">Maximum: {config.poolDrawLimit.toLocaleString()} total draws</p>}
       <p className="field-note"><Info size={12}/>Each account can win one prize, at most.</p>
     </div>
     <div className="control-section"><div className="section-heading"><span className="step-number">03</span><h3>Optional prize limit</h3><Gift size={15}/></div>

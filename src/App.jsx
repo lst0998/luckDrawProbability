@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sparkles, ArrowUpRight, Download, FlaskConical, X, Trophy, CircleHelp, Ticket, Check, Users, Lightbulb, LoaderCircle, Dices } from 'lucide-react';
-import { DEFAULTS, ESTIMATOR_DEFAULTS, estimateWinProbability, accountWinChance, theoreticalCosts, TICKETS_PER_PRIZE } from './model.js';
+import { DEFAULTS, ESTIMATOR_DEFAULTS, estimateWinProbability, applyCalculator, accountWinChance, theoreticalCosts, TICKETS_PER_PRIZE } from './model.js';
 import Controls from './components/Controls.jsx';
 import WinChanceCalculator from './components/WinChanceCalculator.jsx';
 import CostSummary from './components/CostSummary.jsx';
@@ -48,7 +48,7 @@ export default function App() {
     },160);
     return ()=>{clearTimeout(timer);worker?.terminate();};
   },[config]);
-  const update=(name,value)=>{setBusy(true);setConfig(c=>({...c,[name]:value}));};
+  const update=(name,value)=>{setBusy(true);setConfig(c=>({...c,[name]:value,...(name==='probability'?{poolDrawLimit:null}:{})}));};
   const reset=()=>{setBusy(true);setConfig({...DEFAULTS});setDonationCost(DEFAULT_DONATION_COST);setEstimatorInputs({...ESTIMATOR_DEFAULTS});setResetVersion(version=>version+1);};
   const estimate=useMemo(()=>estimateWinProbability(estimatorInputs),[estimatorInputs]);
   const totalDraws=config.accounts*config.draws;
@@ -67,7 +67,7 @@ export default function App() {
     <main id="lab"><section className="intro"><div><div className="eyebrow"><span/>LESS GUESSWORK. MORE POSSIBILITIES.</div><h1>Make sense of your <span>luck.<svg viewBox="0 0 115 12" aria-hidden="true"><path d="M2 8Q55 0 112 6" fill="none" stroke="#c1b1f2" strokeWidth="5" strokeLinecap="round"/></svg></span></h1><p>One prize per account. A world of possibilities.<br className="mobile-break"/> Explore your odds before you draw.</p></div><div className="intro-art" aria-hidden="true"><span className="art-orbit orbit-one"/><span className="art-orbit orbit-two"/><span className="art-star star-one">✦</span><span className="art-star star-two">✧</span><div className="ticket-art"><Ticket size={38} strokeWidth={1.3}/><span>GOOD<br/>FORTUNE</span><i/></div><div className="dice-art"><Dices size={35} strokeWidth={1.5}/></div></div></section>
     <div className="workspace"><Controls config={config} onChange={update} onReset={reset} donationCost={donationCost} onCostChange={setDonationCost} resetVersion={resetVersion}
       winningChanceCalculator={<WinChanceCalculator inputs={estimatorInputs} estimate={estimate} resetVersion={resetVersion}
-        onChange={(name,value)=>setEstimatorInputs(inputs=>({...inputs,[name]:value}))} onApply={probability=>{setBusy(true);setConfig(c=>({...c,probability,prizes:estimatorInputs.totalPrizes,limitPrizes:true}));}}/>}/><div className="results-column" aria-busy={busy}>
+        onChange={(name,value)=>setEstimatorInputs(inputs=>({...inputs,[name]:value}))} onApply={()=>{setBusy(true);setConfig(c=>applyCalculator(c,estimatorInputs));}}/>}/><div className="results-column" aria-busy={busy}>
       <div className="results-topline"><div className="section-heading"><span className="live-dot"/><span>{busy?'Exploring the possibilities…':'Your results, at a glance'}</span></div><button className="text-button" onClick={exportCSV} disabled={!result||busy}>{exported?<Check size={14}/>:<Download size={14}/>} {exported?'Downloaded':'Export results'}</button></div>
       {error && <p role="alert" className="error-message">{error}</p>}
       <div className={`metrics ${busy?'updating':''}`}><article className="metric card featured"><div className="metric-label">Expected prizes<span className="metric-icon"><Trophy size={17}/></span></div><div className="metric-value" data-testid="expected">{result?result.expected.toFixed(2):'—'}<span>prizes</span></div><p>Calculated mathematical expectation</p></article><article className="metric card"><div className="metric-label">1 or more prizes<span className="metric-icon green"><Ticket size={17}/></span></div><div className="metric-value" data-testid="at-least-one">{result?percent(result.atLeast[1] ?? 0):'—'}</div><p>Chance of taking something home</p></article><article className="metric card"><div className="metric-label">Your likely range<span className="metric-icon peach"><Sparkles size={17}/></span></div><div className="metric-value">{result?`${result.range[0]}–${result.range[1]}`:'—'}<span>prizes</span></div><p>5th–95th percentile outcomes</p></article></div>
