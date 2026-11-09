@@ -39,3 +39,9 @@ h1>span{position:relative;display:inline-block}h1>span>svg{position:absolute;lef
 
 .number-hint { color: #82738f; }
 .probability-empty { color: #82778e; font-size: 12px; padding: 30px 0; line-height: 1.8; }
+
+.calculate-actions { padding: 18px 22px 22px; border-top: 1px solid #eeebf3; }
+.calculate-actions .primary-button { min-height: 42px; justify-content: center; gap: 8px; }
+.pending-changes { display: block; margin-bottom: 10px; color: #82738f; font-size: 11px; text-align: center; }
+
+.insight[hidden] { display: none; }

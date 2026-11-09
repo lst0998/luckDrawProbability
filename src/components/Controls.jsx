@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Minus, Plus, SlidersHorizontal, Users, Ticket, RotateCcw, Info, PencilLine, Calculator } from 'lucide-react';
+import { Minus, Plus, SlidersHorizontal, Users, Ticket, RotateCcw, Info, PencilLine, Calculator, LoaderCircle } from 'lucide-react';
 import { LIMITS, COST_LIMITS, strategyLimits } from '../model.js';
 
 export function NumberField({ label, value, onChange, name, suffix, step = 1, limits, allowDecimals = false, disabled = false, resetVersion = 0 }) {
@@ -39,8 +39,8 @@ export function NumberField({ label, value, onChange, name, suffix, step = 1, li
     <button type="button" onClick={() => onChange(Math.min(max, +(value + step).toFixed(2)))} disabled={disabled || value >= max} aria-label={`Increase ${label.toLowerCase()}`}><Plus size={13}/></button>
   </div>{hint && <span className={invalid ? 'number-error' : 'number-hint'} id={hintId} role={invalid ? 'alert' : 'status'}>{hint}</span>}</div>;
 }
-export default function Controls({ config, onChange, onReset, donationCost, onCostChange, winningChanceCalculator, resetVersion }) {
-  const [method, setMethod] = useState('direct');
+export default function Controls({ config, onChange, onReset, donationCost, onCostChange, winningChanceCalculator, resetVersion, method, onMethodChange, onCalculate, calculateDisabled, busy, pending }) {
+  const setMethod = onMethodChange;
   const strategyBounds = strategyLimits(config);
   const switchWithKeyboard = event => {
     const next = { ArrowLeft: method === 'direct' ? 'calculate' : 'direct', ArrowRight: method === 'direct' ? 'calculate' : 'direct', Home: 'direct', End: 'calculate' }[event.key];
@@ -72,6 +72,12 @@ export default function Controls({ config, onChange, onReset, donationCost, onCo
       <div className="budget"><Ticket size={18}/><div><strong>{(config.accounts * config.draws).toLocaleString()}</strong><span>total draws</span></div><span className="budget-equation">{config.accounts.toLocaleString()} × {config.draws.toLocaleString()}</span></div>
       {config.poolDrawLimit != null && <p className="field-note" data-testid="strategy-draw-limit">Maximum: {config.poolDrawLimit.toLocaleString()} total draws</p>}
       <p className="field-note"><Info size={12}/>Each account can win one prize, at most.</p>
+    </div>
+    <div className="calculate-actions">
+      {pending && !busy && <span className="pending-changes" data-testid="pending-changes" role="status">Changes pending</span>}
+      <button type="button" className="primary-button full-width" onClick={onCalculate} disabled={calculateDisabled}>
+        {busy ? <LoaderCircle size={16} className="spin" aria-hidden="true"/> : <Calculator size={16} aria-hidden="true"/>}Calculate
+      </button>
     </div>
   </aside>;
 }

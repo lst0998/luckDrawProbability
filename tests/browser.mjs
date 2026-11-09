@@ -8,17 +8,106 @@ page.on('pageerror',e=>errors.push(e.message));
 const ready = async()=>{
   await page.waitForFunction(()=>document.querySelector('.results-column')?.getAttribute('aria-busy')==='false');
 };
-const field=async(name,value)=>{
+const calculate=async()=>{
+  await page.getByRole('button',{name:'Calculate',exact:true}).click();
+  await ready();
+};
+const editField=async(name,value)=>{
   if (['probability','prizes'].includes(name)) await page.getByRole('tab',{name:'Direct input',exact:true}).click();
   if (['totalOrders','drawsPerOrder','totalPrizes'].includes(name)) await page.getByRole('tab',{name:'Calculate',exact:true}).click();
   await page.locator(`#${name}`).fill(String(value));
   await page.locator(`#${name}`).blur();
-  await ready();
+};
+const field=async(name,value)=>{
+  await editField(name,value);
+  if (!['totalOrders','drawsPerOrder','totalPrizes'].includes(name)) await calculate();
 };
 try {
   await page.goto(process.env.APP_URL || 'http://127.0.0.1:5173');
   await ready();
   await page.locator('.comparison-row').first().waitFor();
+  const calculateButton=page.getByRole('button',{name:'Calculate',exact:true});
+  assert.equal(await calculateButton.count(),1,'Both methods must share one Calculate button');
+  assert.equal(await page.getByRole('button',{name:'Apply calculation',exact:true}).count(),0);
+  const captureResults=async()=>({
+    expected:await page.getByTestId('expected').innerText(),
+    cost:await page.getByTestId('total-cost').innerText(),
+    ticketCost:await page.getByTestId('cost-per-ticket').innerText(),
+    charts:await page.locator('.outcome-chart [role="button"]').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label'))),
+    costPoints:await page.locator('#cost-by-wins .x-label').allTextContents(),
+    comparisons:await page.locator('.comparison-row > strong').allTextContents(),
+  });
+  const initialResults=await captureResults();
+  for(const [name,value] of [['probability',100],['accounts',30],['draws',2],['prizes',7],['donationCost',10]]) await editField(name,value);
+  await page.waitForTimeout(300);
+  assert.deepEqual(await captureResults(),initialResults,'All direct inputs must remain drafts until Calculate');
+  const draftExport=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Export results',exact:true}).click();
+  await (await draftExport).saveAs('/tmp/lucky-lab-pending-results.csv');
+  const draftCsv=await fs.readFile('/tmp/lucky-lab-pending-results.csv','utf8');
+  assert.match(draftCsv,/^accounts,20$/m);
+  assert.match(draftCsv,/^donation_cost,30$/m);
+  assert.match(draftCsv,/^probability,5$/m);
+  assert.equal(await page.getByTestId('pending-changes').innerText(),'Changes pending');
+  await calculate();
+  assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'7.00');
+  assert.equal(await page.getByTestId('total-cost').innerText(),'600.00');
+  assert.equal(await page.getByTestId('expected-tickets').innerText(),'14.00');
+  assert.deepEqual(await page.locator('#outcomes .x-label').allTextContents(),['7']);
+  assert.equal(await page.getByTestId('pending-changes').count(),0);
+  const directResults=await captureResults();
+  await editField('totalOrders',10);
+  await editField('drawsPerOrder',2);
+  await editField('totalPrizes',4);
+  await page.waitForTimeout(300);
+  assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'20.00%');
+  assert.deepEqual(await captureResults(),directResults,'Calculator preview must leave all results unchanged');
+  await calculate();
+  assert.equal(await page.locator('#accounts').inputValue(),'10');
+  assert.equal(await page.locator('#probability').inputValue(),'20');
+  assert.equal(await page.locator('#prizes').inputValue(),'4');
+  assert.equal(await page.getByTestId('total-cost').innerText(),'200.00');
+  assert.ok(Number((await page.getByTestId('expected').innerText()).replace('prizes',''))<=4);
+  await editField('totalOrders',50);
+  await editField('accounts',40);
+  assert.equal(await page.locator('#accounts').inputValue(),'40','A larger pending pool must allow a larger strategy before Calculate');
+  assert.equal(await page.getByTestId('total-cost').innerText(),'200.00');
+  await calculate();
+  assert.equal(await page.locator('#accounts').inputValue(),'40');
+  assert.equal(await page.getByTestId('total-cost').innerText(),'800.00');
+  await editField('totalOrders',0);
+  assert.ok(await calculateButton.isDisabled());
+  await page.getByRole('tab',{name:'Direct input',exact:true}).click();
+  assert.ok(await calculateButton.isEnabled(),'An invalid calculator preview must not block Direct input');
+  await page.getByRole('button',{name:'Reset to example',exact:true}).click();
+  await ready();
+  assert.equal(await page.getByTestId('pending-changes').count(),0);
+  let releaseWorker, workerRequested;
+  const workerGate=new Promise(resolve=>{releaseWorker=resolve;});
+  const requestStarted=new Promise(resolve=>{workerRequested=resolve;});
+  await page.route('**/*calculation.worker*',async route=>{workerRequested();await workerGate;await route.continue();});
+  await editField('probability',100);
+  await calculateButton.click();
+  await requestStarted;
+  assert.ok(await calculateButton.isDisabled(),'Prevent another submission while calculating');
+  assert.ok(await page.getByRole('button',{name:'Export results',exact:true}).isDisabled());
+  await editField('probability',50);
+  await editField('donationCost',40);
+  assert.deepEqual(await captureResults(),initialResults,'The entire previous result remains coherent while work is in flight');
+  releaseWorker();
+  await ready();
+  await page.unroute('**/*calculation.worker*');
+  assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'20.00');
+  assert.equal(await page.getByTestId('total-cost').innerText(),'6,000.00');
+  assert.equal(await page.locator('#probability').inputValue(),'50','A worker result must not overwrite later edits');
+  assert.equal(await page.locator('#donationCost').inputValue(),'40');
+  assert.equal(await page.getByTestId('pending-changes').innerText(),'Changes pending');
+  await calculate();
+  assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'19.98');
+  assert.equal(await page.getByTestId('total-cost').innerText(),'8,000.00');
+  await page.getByRole('button',{name:'Reset to example',exact:true}).click();
+  await ready();
+  console.log('PASS shared Calculate button, pending edits including in-flight edits, atomic results, applied CSV and reset');
   await page.screenshot({path:'/tmp/lucky-lab-desktop.png',fullPage:true});
   assert.equal(await page.title(),'Lucky Lab — Understand your odds');
   const expected=Number((await page.getByTestId('expected').innerText()).replace('prizes',''));
@@ -63,14 +152,14 @@ try {
   const estimator=page.locator('#win-chance-calculator');
   assert.equal(await page.locator('#winning-chance-settings #win-chance-calculator').count(),1,'Calculator must be inside the left winning-chance section');
   assert.equal(await page.locator('.results-column #win-chance-calculator').count(),0);
-  const applyEstimate=estimator.getByTestId('apply-estimate');
-  assert.equal(await applyEstimate.innerText(),'Apply calculation');
+  const applyEstimate=calculateButton;
+  assert.equal(await applyEstimate.innerText(),'Calculate');
   assert.ok(await applyEstimate.isEnabled());
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'5.00%');
   await field('probability',7);
   const manualExpected=await page.getByTestId('expected').innerText();
   await field('totalOrders',2000);
-  assert.equal(await applyEstimate.innerText(),'Apply calculation');
+  assert.equal(await applyEstimate.innerText(),'Calculate');
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'2.50%');
   assert.equal(await page.locator('#probability').inputValue(),'7','Editing the calculator must preserve manual odds');
   assert.equal(await page.getByTestId('expected').innerText(),manualExpected);
@@ -78,7 +167,7 @@ try {
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'3.33%');
   await applyEstimate.click();
   await ready();
-  assert.equal(await applyEstimate.innerText(),'Apply calculation');
+  assert.equal(await applyEstimate.innerText(),'Calculate');
   assert.ok(await applyEstimate.isEnabled());
   assert.equal(await page.locator('#probability').inputValue(),'3.33','Apply must round the percentage to two decimal places');
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),(20*(1-(1-.0333)**10)).toFixed(2));
@@ -154,12 +243,12 @@ try {
   await page.waitForFunction(()=>[...document.querySelectorAll('.comparison-row > strong')].length>0);
   assert.ok((await page.locator('.comparison-row > strong').allTextContents()).every(value=>Number(value)<=100));
   await page.locator('.comparison-row').last().click();
-  await ready();
+  await calculate();
   assert.equal(Number(await page.locator('#accounts').inputValue())*Number(await page.locator('#draws').inputValue()),2000);
   await field('accounts',200);
   await field('draws',10);
   await field('totalPrizes',60);
-  assert.equal(await page.locator('#prizes').inputValue(),'100','Preview edits wait for Apply calculation');
+  assert.equal(await page.locator('#prizes').inputValue(),'100','Preview edits wait for Calculate');
   await applyEstimate.click();
   await ready();
   assert.equal(await page.locator('#prizes').inputValue(),'60');
@@ -190,8 +279,10 @@ try {
   assert.equal(await page.locator('#accounts').inputValue(),'0','A positive account cannot exceed the pool through a zero-account intermediate state');
   await field('draws',1);
   await field('accounts',1);
+  const beforeDirectSwitch=await captureResults();
   await directTab.click();
-  assert.equal(await page.getByTestId('strategy-draw-limit').innerText(),'Maximum: 20 total draws','Switching methods alone preserves the applied scenario');
+  assert.deepEqual(await captureResults(),beforeDirectSwitch,'Switching methods alone preserves the calculated results');
+  assert.equal(await page.getByTestId('strategy-draw-limit').count(),0,'Direct input strategy is independent of the calculator draw pool');
   await field('prizes',3);
   assert.equal(await page.getByTestId('strategy-draw-limit').count(),0,'Editing manual total prizes releases the calculator draw-pool constraint');
   assert.equal(await page.locator('#probability').inputValue(),'100','Manual prize edits preserve the winning probability');
@@ -369,11 +460,11 @@ try {
   assert.doesNotMatch(csv,/limitPrizes/);
   assert.match(csv,/^donation_cost,30$/m);
   assert.match(csv,/^probability,5$/m);
-  assert.match(csv,/^calculator_totalOrders,2000$/m);
+  assert.match(csv,/^calculator_totalOrders,1000$/m);
   assert.match(csv,/^calculator_drawsPerOrder,2$/m);
   assert.match(csv,/^calculator_totalPrizes,100$/m);
-  assert.match(csv,/^calculator_total_draws,4000$/m);
-  assert.match(csv,/^calculator_probability_percent,2.5$/m);
+  assert.match(csv,/^calculator_total_draws,2000$/m);
+  assert.match(csv,/^calculator_probability_percent,5$/m);
   assert.match(csv,/tickets_per_prize,2/);
   assert.match(csv,/theoretical_cost_per_ticket/);
   const rows=csv.split('\n');
@@ -396,8 +487,10 @@ try {
   assert.doesNotMatch(await page.locator('dialog').innerText(),/simulat|rounds/i);
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('dialog').count(),0);
+  const beforeStrategy=await captureResults();
   await page.locator('.comparison-row').first().click();
-  await ready();
+  assert.deepEqual(await captureResults(),beforeStrategy,'Selecting a strategy must wait for Calculate');
+  await calculate();
   const accounts=Number(await page.locator('#accounts').inputValue());
   const draws=Number(await page.locator('#draws').inputValue());
   assert.equal(accounts*draws,200);
@@ -415,6 +508,7 @@ try {
   await page.locator('#accounts').blur();
   assert.equal(await page.locator('#accounts').inputValue(),'10000');
   assert.ok(await page.locator('#accounts-hint').isVisible());
+  await calculate();
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'4012.63');
   await page.locator('#accounts').fill('1.5');
   assert.equal(await page.locator('#accounts-error').innerText(),'Enter a whole number.');
@@ -471,6 +565,10 @@ try {
   });
   await page.screenshot({path:'/tmp/lucky-lab-mobile.png',fullPage:true});
   await directTab.click();
+  const buttonBox=await calculateButton.boundingBox();
+  const strategyBox=await page.locator('.control-section').last().boundingBox();
+  assert.ok(buttonBox.y>=strategyBox.y+strategyBox.height,'Calculate belongs below all left-panel inputs');
+  await page.locator('.control-panel').screenshot({path:'/tmp/lucky-lab-calculate-mobile.png'});
   await page.locator('#winning-chance-settings').screenshot({path:'/tmp/lucky-lab-method-direct-mobile.png'});
   await calculateTab.click();
   await page.locator('#winning-chance-settings').screenshot({path:'/tmp/lucky-lab-method-calculate-mobile.png'});
@@ -534,7 +632,7 @@ try {
   }
   await touchPage.getByRole('tab',{name:'Calculate',exact:true}).tap();
   await touchPage.locator('#totalOrders').fill('2000');
-  await touchPage.getByRole('button',{name:'Apply calculation',exact:true}).tap();
+  await touchPage.getByRole('button',{name:'Calculate',exact:true}).tap();
   await touchPage.waitForFunction(()=>document.querySelector('.results-column')?.getAttribute('aria-busy')==='false');
   assert.equal(await touchPage.locator('#probability').inputValue(),'2.5');
   await touchPage.getByRole('tab',{name:'Direct input',exact:true}).tap();
@@ -552,6 +650,8 @@ try {
   await page.route('**/*calculation.worker*', route=>route.abort());
   await field('probability',0);
   await page.getByRole('alert').waitFor();
+  assert.ok(await page.locator('.cost-section').isHidden(),'Failed calculations must not show stale costs');
+  assert.ok(await page.locator('.insight').isHidden(),'Failed calculations must not show a stale summary');
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes','').trim(),'—','Failed new scenario must not display stale results');
   assert.ok(await page.getByRole('button',{name:'Export results',exact:true}).isDisabled(),'Failed new scenario must not export stale results');
   await page.unroute('**/*calculation.worker*');
