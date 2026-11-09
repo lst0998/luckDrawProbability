@@ -1,9 +1,9 @@
-export const LIMITS = { probability: [0, 100], accounts: [0, 10000], draws: [0, 10000], prizes: [0, 20000] };
+export const LIMITS = { probability: [0, 100], accounts: [0, 10000], draws: [0, 10000], prizes: [0, 1000000000] };
 export const COST_LIMITS = [0, 1000000];
 export const TICKETS_PER_PRIZE = 2;
 export const DEFAULTS = { probability: 5, accounts: 20, draws: 10, prizes: 20, limitPrizes: false };
 export const ESTIMATOR_DEFAULTS = { totalOrders: 1000, drawsPerOrder: 2, totalPrizes: 100 };
-export const ESTIMATOR_LIMITS = { totalOrders: [0, 1000000000], drawsPerOrder: [0, 10000], totalPrizes: [0, 1000000000] };
+export const ESTIMATOR_LIMITS = { totalOrders: [0, 1000000000], drawsPerOrder: [0, 10000], totalPrizes: LIMITS.prizes };
 
 export function estimateWinProbability(inputs) {
   for (const [key, [min, max]] of Object.entries(ESTIMATOR_LIMITS)) {
@@ -77,7 +77,7 @@ export function calculate(config) {
     if (low === undefined && cumulative >= .05) low = k;
     if (high === undefined && cumulative >= .95) high = k;
   });
-  return { probabilities, atLeast, expected, range: [low ?? 0, high ?? cap], ownChance };
+  return { probabilities, atLeast, expected: Math.min(cap, expected), range: [low ?? 0, high ?? cap], ownChance };
 }
 export function strategies(config) {
   const budget = config.accounts * config.draws;

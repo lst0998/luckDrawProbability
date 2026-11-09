@@ -61,13 +61,13 @@ try {
   assert.equal(await page.locator('#winning-chance-settings #win-chance-calculator').count(),1,'Calculator must be inside the left winning-chance section');
   assert.equal(await page.locator('.results-column #win-chance-calculator').count(),0);
   const applyEstimate=estimator.getByTestId('apply-estimate');
-  assert.equal(await applyEstimate.innerText(),'Use this rate');
+  assert.equal(await applyEstimate.innerText(),'Apply calculation');
   assert.ok(await applyEstimate.isEnabled());
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'5.00%');
   await field('probability',7);
   const manualExpected=await page.getByTestId('expected').innerText();
   await field('totalOrders',2000);
-  assert.equal(await applyEstimate.innerText(),'Use this rate');
+  assert.equal(await applyEstimate.innerText(),'Apply calculation');
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'2.50%');
   assert.equal(await page.locator('#probability').inputValue(),'7','Editing the calculator must preserve manual odds');
   assert.equal(await page.getByTestId('expected').innerText(),manualExpected);
@@ -75,7 +75,7 @@ try {
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'3.33%');
   await applyEstimate.click();
   await ready();
-  assert.equal(await applyEstimate.innerText(),'Use this rate');
+  assert.equal(await applyEstimate.innerText(),'Apply calculation');
   assert.ok(await applyEstimate.isEnabled());
   assert.equal(await page.locator('#probability').inputValue(),'3.33','Apply must round the percentage to two decimal places');
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),(20*(1-(1-.0333)**10)).toFixed(2));
@@ -104,6 +104,8 @@ try {
   await applyEstimate.click();
   await ready();
   assert.equal(await page.getByTestId('at-least-one').innerText(),'0.00%');
+  assert.equal(await page.locator('#prizes').inputValue(),'0');
+  assert.ok(await page.getByRole('checkbox',{name:'Limit total prizes'}).isChecked());
   await field('totalOrders',10);
   await field('totalPrizes',1000);
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'100.00%');
@@ -111,8 +113,46 @@ try {
   await applyEstimate.click();
   await ready();
   assert.equal(await page.locator('#probability').inputValue(),'100');
-  assert.equal(await page.getByRole('checkbox',{name:'Limit total prizes'}).isChecked(),false,'Calculator prizes must not change the separate account prize cap');
+  assert.ok(await page.getByRole('checkbox',{name:'Limit total prizes'}).isChecked(),'Applying a calculation must enforce the available prize pool');
+  assert.equal(await page.locator('#prizes').inputValue(),'1000');
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'20.00');
+  await field('accounts',2000);
+  await field('totalOrders',1000);
+  await field('drawsPerOrder',2);
+  await field('totalPrizes',100);
+  await applyEstimate.click();
+  await ready();
+  assert.equal(await page.locator('#probability').inputValue(),'5');
+  assert.equal(await page.locator('#prizes').inputValue(),'100');
+  assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'100.00');
+  assert.equal(await page.getByTestId('expected-tickets').innerText(),'200.00');
+  assert.equal(await page.getByTestId('cost-per-ticket').innerText(),'3,000.00');
+  assert.doesNotMatch(await page.locator('.insight').innerText(),/802/,'The summary must not present an uncapped expectation');
+  assert.doesNotMatch(await page.locator('.insight').innerText(),/Each account has a/,'A capped result must not imply the uncapped rate is every account’s final chance');
+  for(const chart of [individualChart,cumulativeChart,page.locator('#cost-by-wins')]) {
+    assert.ok((await chart.locator('.x-label').allTextContents()).every(label=>Number(label)<=100),'Every chart must respect the calculator pool');
+  }
+  await page.waitForFunction(()=>[...document.querySelectorAll('.comparison-row > strong')].length>0);
+  assert.ok((await page.locator('.comparison-row > strong').allTextContents()).every(value=>Number(value)<=100));
+  await field('totalPrizes',60);
+  assert.equal(await page.locator('#prizes').inputValue(),'100','Preview edits wait for Apply calculation');
+  await applyEstimate.click();
+  await ready();
+  assert.equal(await page.locator('#prizes').inputValue(),'60');
+  assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'60.00');
+  const poolDownloadPromise=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Export results',exact:true}).click();
+  await (await poolDownloadPromise).saveAs('/tmp/lucky-lab-pool-results.csv');
+  const poolCsv=await fs.readFile('/tmp/lucky-lab-pool-results.csv','utf8');
+  assert.match(poolCsv,/^prizes,60$/m);
+  assert.match(poolCsv,/^limitPrizes,true$/m);
+  assert.ok(poolCsv.trim().split('\n').at(-1).startsWith('60,'),'Exported outcomes must stop at the pool size');
+  await field('totalPrizes',1000000000);
+  await applyEstimate.click();
+  await ready();
+  assert.equal(await page.locator('#prizes').inputValue(),'1000000000');
+  assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'2000.00');
+  console.log('PASS calculator rate and pool apply together across summaries, graphs, costs, comparisons and CSV');
   await page.getByRole('button',{name:'Reset to example',exact:true}).click();
   await ready();
   assert.equal(await page.locator('#totalOrders').inputValue(),'1000');
@@ -324,7 +364,7 @@ try {
   await page.getByRole('checkbox',{name:'Limit total prizes'}).check();
   await ready();
   for (const [name,max,suffix] of [
-    ['accounts',10000,''],['draws',10000,''],['probability',100,'%'],['prizes',20000,''],
+    ['accounts',10000,''],['draws',10000,''],['probability',100,'%'],['prizes',1000000000,''],
     ['donationCost',1000000,''],['totalOrders',1000000000,''],['drawsPerOrder',10000,''],['totalPrizes',1000000000,''],
   ]) {
     const previous=await page.locator(`#${name}`).inputValue();
@@ -380,6 +420,8 @@ try {
   assert.ok(await page.locator('#outcomes .outcome-chart').isVisible());
   assert.ok(await page.locator('#cumulative-outcomes .outcome-chart').isVisible());
   console.log('PASS mobile layout and interactions');
+  await page.getByRole('checkbox',{name:'Limit total prizes'}).uncheck();
+  await ready();
   await field('probability',100);
   for (const count of [2000,10000]) {
     await field('accounts',count);
@@ -430,7 +472,7 @@ try {
   }
   await touchPage.getByRole('tab',{name:'Calculate',exact:true}).tap();
   await touchPage.locator('#totalOrders').fill('2000');
-  await touchPage.getByRole('button',{name:'Use this rate',exact:true}).tap();
+  await touchPage.getByRole('button',{name:'Apply calculation',exact:true}).tap();
   await touchPage.waitForFunction(()=>document.querySelector('.results-column')?.getAttribute('aria-busy')==='false');
   assert.equal(await touchPage.locator('#probability').inputValue(),'2.5');
   await touchPage.getByRole('tab',{name:'Direct input',exact:true}).tap();

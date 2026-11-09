@@ -37,6 +37,12 @@ test('cap combines all higher outcomes at the capped win count', () => {
   assert.deepEqual(r.atLeast,[1,.75]);
   close(r.expected,.75);
 });
+test('prize caps support the full calculator pool range without growing the outcome domain', () => {
+  const result=model.calculate({...base,accounts:2000,prizes:1000000000,limitPrizes:true});
+  assert.equal(result.probabilities.length,2001);
+  close(result.expected,2000*(1-.95**10),1e-8);
+  assert.throws(()=>model.calculate({...base,prizes:1000000001,limitPrizes:true}));
+});
 test('disabled cap is ignored and certain draws respect one win per account', () => {
   const r=model.calculate({...base,probability:100,prizes:0});
   close(r.expected,20);
