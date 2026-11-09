@@ -20,6 +20,7 @@ export default function App() {
   const [config,setConfig] = useState(DEFAULTS);
   const [estimatorInputs,setEstimatorInputs] = useState(ESTIMATOR_DEFAULTS);
   const [donationCost,setDonationCost] = useState(DEFAULT_DONATION_COST);
+  const [resetVersion,setResetVersion] = useState(0);
   const [result,setResult] = useState(null);
   const [comparisons,setComparisons] = useState([]);
   const [busy,setBusy] = useState(true);
@@ -48,7 +49,7 @@ export default function App() {
     return ()=>{clearTimeout(timer);worker?.terminate();};
   },[config]);
   const update=(name,value)=>{setBusy(true);setConfig(c=>({...c,[name]:value}));};
-  const reset=()=>{setBusy(true);setConfig({...DEFAULTS});setDonationCost(DEFAULT_DONATION_COST);setEstimatorInputs({...ESTIMATOR_DEFAULTS});};
+  const reset=()=>{setBusy(true);setConfig({...DEFAULTS});setDonationCost(DEFAULT_DONATION_COST);setEstimatorInputs({...ESTIMATOR_DEFAULTS});setResetVersion(version=>version+1);};
   const estimate=useMemo(()=>estimateWinProbability(estimatorInputs),[estimatorInputs]);
   const totalDraws=config.accounts*config.draws;
   const costs=useMemo(()=>theoreticalCosts(config,donationCost),[config,donationCost]);
@@ -65,8 +66,8 @@ export default function App() {
   const highestComparison=Math.max(1,...comparisons.map(c=>c.expected));
   return <><header className="site-header"><div className="header-inner"><a className="brand" href="#" aria-label="Lucky Lab home"><span className="brand-mark"><Sparkles size={23} strokeWidth={1.8}/></span>lucky<span>lab</span><span className="beta">BETA</span></a><nav><a className="nav-link active" href="#lab"><FlaskConical size={15}/>Probability lab</a><button className="nav-link" onClick={()=>setShowModel(true)}>How it works<ArrowUpRight size={14}/></button></nav><div className="header-note"><span className="live-dot"/>A playground for probability</div></div></header>
     <main id="lab"><section className="intro"><div><div className="eyebrow"><span/>LESS GUESSWORK. MORE POSSIBILITIES.</div><h1>Make sense of your <span>luck.<svg viewBox="0 0 115 12" aria-hidden="true"><path d="M2 8Q55 0 112 6" fill="none" stroke="#c1b1f2" strokeWidth="5" strokeLinecap="round"/></svg></span></h1><p>One prize per account. A world of possibilities.<br className="mobile-break"/> Explore your odds before you draw.</p></div><div className="intro-art" aria-hidden="true"><span className="art-orbit orbit-one"/><span className="art-orbit orbit-two"/><span className="art-star star-one">✦</span><span className="art-star star-two">✧</span><div className="ticket-art"><Ticket size={38} strokeWidth={1.3}/><span>GOOD<br/>FORTUNE</span><i/></div><div className="dice-art"><Dices size={35} strokeWidth={1.5}/></div></div></section>
-    <div className="workspace"><Controls config={config} onChange={update} onReset={reset} donationCost={donationCost} onCostChange={setDonationCost}
-      winningChanceCalculator={<WinChanceCalculator inputs={estimatorInputs} estimate={estimate}
+    <div className="workspace"><Controls config={config} onChange={update} onReset={reset} donationCost={donationCost} onCostChange={setDonationCost} resetVersion={resetVersion}
+      winningChanceCalculator={<WinChanceCalculator inputs={estimatorInputs} estimate={estimate} resetVersion={resetVersion}
         onChange={(name,value)=>setEstimatorInputs(inputs=>({...inputs,[name]:value}))} onApply={value=>update('probability',value)}/>}/><div className="results-column" aria-busy={busy}>
       <div className="results-topline"><div className="section-heading"><span className="live-dot"/><span>{busy?'Exploring the possibilities…':'Your results, at a glance'}</span></div><button className="text-button" onClick={exportCSV} disabled={!result||busy}>{exported?<Check size={14}/>:<Download size={14}/>} {exported?'Downloaded':'Export results'}</button></div>
       {error && <p role="alert" className="error-message">{error}</p>}

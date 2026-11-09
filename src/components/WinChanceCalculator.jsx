@@ -2,9 +2,9 @@ import { ArrowRight, Users } from 'lucide-react';
 import { ESTIMATOR_LIMITS } from '../model.js';
 import { NumberField } from './Controls.jsx';
 
-export default function WinChanceCalculator({ inputs, estimate, onChange, onApply }) {
+export default function WinChanceCalculator({ inputs, estimate, onChange, onApply, resetVersion }) {
   const field = (name, label, options = {}) => <NumberField name={name} label={label} value={inputs[name]}
-    onChange={value => onChange(name, value)} limits={ESTIMATOR_LIMITS[name]} {...options}/>;
+    onChange={value => onChange(name, value)} limits={ESTIMATOR_LIMITS[name]} resetVersion={resetVersion} {...options}/>;
 
   return <section className="estimator-card" id="win-chance-calculator" aria-label="Calculate from orders">
     <div className="estimator-scope"><Users size={13} aria-hidden="true"/>All participants</div>

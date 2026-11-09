@@ -87,7 +87,9 @@ try {
   await calculateTab.click();
   await page.locator('#drawsPerOrder').fill('-1');
   await page.locator('#drawsPerOrder').blur();
-  assert.equal(await page.locator('#drawsPerOrder').inputValue(),'1.5');
+  assert.equal(await page.locator('#drawsPerOrder').inputValue(),'0');
+  assert.equal(await page.locator('#drawsPerOrder-hint').innerText(),'Minimum: 0.');
+  await field('drawsPerOrder',1.5);
   await page.locator('#totalOrders').fill('1.5');
   await page.locator('#totalOrders').blur();
   assert.equal(await page.locator('#totalOrders').inputValue(),'2000');
@@ -300,15 +302,56 @@ try {
   await page.locator('#accounts').fill('');
   await page.locator('#accounts').blur();
   assert.equal(await page.locator('#accounts').inputValue(),'20');
-  await page.locator('#accounts').fill('10001');
-  assert.equal(await page.locator('#accounts').getAttribute('aria-invalid'),'true');
-  assert.equal(await page.locator('#accounts-error').innerText(),'Enter 0–10,000.');
+  await page.locator('#accounts').fill('20000');
+  await ready();
+  assert.equal(await page.locator('#accounts').getAttribute('aria-invalid'),null);
+  assert.equal(await page.locator('#accounts-hint').innerText(),'Maximum: 10,000.');
   await page.locator('#accounts').blur();
-  assert.equal(await page.locator('#accounts').inputValue(),'20');
+  assert.equal(await page.locator('#accounts').inputValue(),'10000');
+  assert.ok(await page.locator('#accounts-hint').isVisible());
+  assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'4012.63');
   await page.locator('#accounts').fill('1.5');
   assert.equal(await page.locator('#accounts-error').innerText(),'Enter a whole number.');
   await page.locator('#accounts').blur();
+  assert.equal(await page.locator('#accounts').inputValue(),'10000');
+  await page.getByRole('button',{name:'Reset to example',exact:true}).click();
+  await ready();
   assert.equal(await page.locator('#accounts').inputValue(),'20');
+  assert.equal(await page.locator('#accounts-error').count(),0,'Reset clears invalid drafts even if the valid value was already the default');
+  await page.getByRole('checkbox',{name:'Limit total prizes'}).check();
+  await ready();
+  for (const [name,max,suffix] of [
+    ['accounts',10000,''],['draws',10000,''],['probability',100,'%'],['prizes',20000,''],
+    ['donationCost',1000000,''],['totalOrders',1000000000,''],['drawsPerOrder',10000,''],['totalPrizes',1000000000,''],
+  ]) {
+    const previous=await page.locator(`#${name}`).inputValue();
+    await field(name,max+1);
+    const hint=page.locator(`#${name}-hint`);
+    assert.ok(await hint.isVisible(),`${name} limit hint must persist after blur`);
+    assert.equal(await page.locator(`#${name}`).inputValue(),String(max),'Over-limit input must be clamped to the supported maximum');
+    assert.equal(await page.locator(`#${name}`).getAttribute('aria-invalid'),null);
+    assert.equal(await hint.innerText(),`Maximum: ${max.toLocaleString()}${suffix}.`);
+    await field(name,previous);
+    assert.equal(await hint.count(),0,'Correcting the value clears its hint');
+  }
+  await page.getByRole('button',{name:'Reset to example',exact:true}).click();
+  await ready();
+  await field('accounts',10001);
+  await field('totalOrders',1000000001);
+  await field('donationCost',1000001);
+  assert.equal(await page.locator('.number-hint').count(),3,'Changing another field must not hide a limit hint');
+  await page.getByRole('button',{name:'Reset to example',exact:true}).click();
+  await ready();
+  assert.equal(await page.locator('.number-error, .number-hint').count(),0);
+  assert.equal(await page.locator('#totalOrders').inputValue(),'1000');
+  await field('probability',101);
+  await calculateTab.click();
+  await applyEstimate.click();
+  await ready();
+  await directTab.click();
+  assert.equal(await page.locator('#probability').inputValue(),'5');
+  assert.equal(await page.locator('#probability-hint').count(),0,'Applying a calculated rate clears the prior limit hint');
+  console.log('PASS automatic clamping and concise limit hints for every numeric field, correction and reset');
   await field('donationCost',0);
   assert.equal(await page.getByTestId('cost-per-ticket').innerText(),'0.00');
   await costCurve.focus();
