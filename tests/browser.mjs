@@ -9,7 +9,7 @@ const ready = async()=>{
   await page.waitForFunction(()=>document.querySelector('.results-column')?.getAttribute('aria-busy')==='false');
 };
 const field=async(name,value)=>{
-  if (name === 'probability') await page.getByRole('tab',{name:'Direct input',exact:true}).click();
+  if (['probability','prizes'].includes(name)) await page.getByRole('tab',{name:'Direct input',exact:true}).click();
   if (['totalOrders','drawsPerOrder','totalPrizes'].includes(name)) await page.getByRole('tab',{name:'Calculate',exact:true}).click();
   await page.locator(`#${name}`).fill(String(value));
   await page.locator(`#${name}`).blur();
@@ -24,9 +24,12 @@ try {
   const expected=Number((await page.getByTestId('expected').innerText()).replace('prizes',''));
   assert.equal(expected,8.03);
   assert.equal(await page.locator('#others, #otherDraws').count(),0);
-  assert.equal(await page.getByRole('checkbox',{name:'Limit total prizes'}).isChecked(),false);
-  assert.ok(await page.locator('#prizes').isVisible(),'Total prize count must remain discoverable with the limit off');
-  assert.ok(await page.locator('#prizes').isDisabled());
+  assert.equal(await page.getByRole('checkbox',{name:'Limit total prizes'}).count(),0);
+  assert.doesNotMatch(await page.locator('body').innerText(),/Optional prize limit|cap if enabled/i);
+  assert.equal(await page.locator('#probability-panel-direct #prizes').count(),1,'Manual total prizes belongs with the direct winning probability');
+  assert.ok(await page.locator('#prizes').isVisible());
+  assert.ok(await page.locator('#prizes').isEnabled());
+  assert.equal(await page.locator('#prizes').inputValue(),'20');
   const individualChart = page.locator('#outcomes');
   const cumulativeChart = page.locator('#cumulative-outcomes');
   assert.equal(await page.locator('svg.outcome-chart').count(),2,'Individual and cumulative outcomes must have separate graphs');
@@ -105,7 +108,6 @@ try {
   await ready();
   assert.equal(await page.getByTestId('at-least-one').innerText(),'0.00%');
   assert.equal(await page.locator('#prizes').inputValue(),'0');
-  assert.ok(await page.getByRole('checkbox',{name:'Limit total prizes'}).isChecked());
   await field('totalOrders',10);
   await field('totalPrizes',1000);
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'100.00%');
@@ -113,7 +115,6 @@ try {
   await applyEstimate.click();
   await ready();
   assert.equal(await page.locator('#probability').inputValue(),'100');
-  assert.ok(await page.getByRole('checkbox',{name:'Limit total prizes'}).isChecked(),'Applying a calculation must enforce the available prize pool');
   assert.equal(await page.locator('#prizes').inputValue(),'1000');
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'1.00');
   assert.equal(await page.locator('#accounts').inputValue(),'1');
@@ -168,7 +169,7 @@ try {
   await (await poolDownloadPromise).saveAs('/tmp/lucky-lab-pool-results.csv');
   const poolCsv=await fs.readFile('/tmp/lucky-lab-pool-results.csv','utf8');
   assert.match(poolCsv,/^prizes,60$/m);
-  assert.match(poolCsv,/^limitPrizes,true$/m);
+  assert.doesNotMatch(poolCsv,/limitPrizes/);
   assert.match(poolCsv,/^poolDrawLimit,2000$/m);
   assert.match(poolCsv,/^accounts,200$/m);
   assert.match(poolCsv,/^draws,10$/m);
@@ -189,6 +190,12 @@ try {
   assert.equal(await page.locator('#accounts').inputValue(),'0','A positive account cannot exceed the pool through a zero-account intermediate state');
   await field('draws',1);
   await field('accounts',1);
+  await directTab.click();
+  assert.equal(await page.getByTestId('strategy-draw-limit').innerText(),'Maximum: 20 total draws','Switching methods alone preserves the applied scenario');
+  await field('prizes',3);
+  assert.equal(await page.getByTestId('strategy-draw-limit').count(),0,'Editing manual total prizes releases the calculator draw-pool constraint');
+  assert.equal(await page.locator('#probability').inputValue(),'100','Manual prize edits preserve the winning probability');
+  assert.equal(await page.locator('#totalPrizes').inputValue(),'1000000000','Manual prize edits preserve the calculator preview');
   await field('probability',50);
   assert.equal(await page.getByTestId('strategy-draw-limit').count(),0,'Entering a rate directly releases the calculator draw-pool constraint');
   await field('accounts',2000);
@@ -208,25 +215,25 @@ try {
   console.log('PASS method tabs, keyboard access, calculator apply, manual override and input boundaries');
   assert.ok((await page.locator('.cost-card').boundingBox()).y >= (await cumulativeChart.boundingBox()).y + (await cumulativeChart.boundingBox()).height,'Cost summary must follow both probability graphs');
   assert.ok((await page.locator('#cost-by-wins').boundingBox()).y > (await page.locator('.cost-card').boundingBox()).y,'Cost graph must follow its summary');
+  await field('prizes',10000);
   await field('accounts',200);
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'80.25');
   await field('accounts',2000);
   assert.equal(await page.locator('#accounts').inputValue(),'2000');
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'802.53');
-  await page.getByRole('checkbox',{name:'Limit total prizes'}).check();
   assert.ok(await page.locator('#prizes').isEnabled());
   await field('prizes',100);
   assert.ok(Number((await page.getByTestId('expected').innerText()).replace('prizes',''))<=100);
-  await page.getByRole('checkbox',{name:'Limit total prizes'}).uncheck();
-  await ready();
+  await field('prizes',10000);
   assert.ok(await page.locator('#prizes').isVisible());
-  assert.ok(await page.locator('#prizes').isDisabled());
+  assert.ok(await page.locator('#prizes').isEnabled());
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'802.53');
   await field('accounts',10000);
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'4012.63');
   await page.getByRole('button',{name:'Reset to example',exact:true}).click();
   await ready();
-  console.log('PASS 200 to 2000 accounts, 10000-account support and visible prize cap');
+  console.log('PASS 200 to 2000 accounts, 10000-account support and automatic total-prize cap');
+  await field('prizes',10000);
   await field('accounts',1000);
   await field('draws',1);
   await field('probability',50);
@@ -248,7 +255,6 @@ try {
   await cumulativeChart.getByRole('button',{name:'500 or more prizes: 51.26%',exact:true}).hover();
   assert.match(await cumulativeChart.locator('.chart-tooltip').innerText(),/51.26%/);
   await individualChart.screenshot({path:'/tmp/lucky-lab-high-accounts.png'});
-  await page.getByRole('checkbox',{name:'Limit total prizes'}).check();
   await ready();
   await field('prizes',548);
   for (const chart of [individualChart,cumulativeChart]) {
@@ -299,7 +305,6 @@ try {
   console.log('PASS donation input, theoretical cost and keyboard cost-by-wins graph');
   await field('probability',100);
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'20.00');
-  await page.getByRole('checkbox',{name:'Limit total prizes'}).check();
   await ready();
   await field('prizes',3);
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'3.00');
@@ -319,12 +324,12 @@ try {
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'0.00');
   assert.equal(await page.getByTestId('cost-per-ticket').innerText(),'—');
   assert.ok(await page.getByText('No tickets expected',{exact:true}).isVisible());
-  await page.getByRole('checkbox',{name:'Limit total prizes'}).uncheck();
-  await ready();
+  assert.match(await page.locator('.insight').innerText(),/No prizes are available/);
+  await field('prizes',20);
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'20.00');
   await field('probability',0);
   assert.equal(await page.getByTestId('at-least-one').innerText(),'0.00%');
-  console.log('PASS certain probability, optional cap, cap disable and zero probability');
+  console.log('PASS certain probability, manual total prizes, zero prizes and zero probability');
   assert.equal(await costCurve.count(),0);
   assert.equal(await page.getByTestId('chart-theoretical-cost').innerText(),'—');
   await field('accounts',1);
@@ -360,7 +365,8 @@ try {
   const csv=await fs.readFile('/tmp/lucky-lab-results.csv','utf8');
   assert.match(csv,/probability_x_or_more/);
   assert.match(csv,/accounts,20/);
-  assert.match(csv,/limitPrizes,false/);
+  assert.match(csv,/^prizes,20$/m);
+  assert.doesNotMatch(csv,/limitPrizes/);
   assert.match(csv,/^donation_cost,30$/m);
   assert.match(csv,/^probability,5$/m);
   assert.match(csv,/^calculator_totalOrders,2000$/m);
@@ -401,6 +407,7 @@ try {
   await page.locator('#accounts').fill('');
   await page.locator('#accounts').blur();
   assert.equal(await page.locator('#accounts').inputValue(),'20');
+  await field('prizes',10000);
   await page.locator('#accounts').fill('20000');
   await ready();
   assert.equal(await page.locator('#accounts').getAttribute('aria-invalid'),null);
@@ -417,7 +424,6 @@ try {
   await ready();
   assert.equal(await page.locator('#accounts').inputValue(),'20');
   assert.equal(await page.locator('#accounts-error').count(),0,'Reset clears invalid drafts even if the valid value was already the default');
-  await page.getByRole('checkbox',{name:'Limit total prizes'}).check();
   await ready();
   for (const [name,max,suffix] of [
     ['accounts',10000,''],['draws',10000,''],['probability',100,'%'],['prizes',1000000000,''],
@@ -476,8 +482,7 @@ try {
   assert.ok(await page.locator('#outcomes .outcome-chart').isVisible());
   assert.ok(await page.locator('#cumulative-outcomes .outcome-chart').isVisible());
   console.log('PASS mobile layout and interactions');
-  await page.getByRole('checkbox',{name:'Limit total prizes'}).uncheck();
-  await ready();
+  await field('prizes',10000);
   await field('probability',100);
   for (const count of [2000,10000]) {
     await field('accounts',count);
@@ -494,6 +499,7 @@ try {
   await ready();
   await field('probability',10);
   console.log('PASS large account counts and result ranges on narrow screens');
+  await field('prizes',10000);
   await field('accounts',1000);
   const mobileLabels=await individualChart.locator('.x-label').allTextContents();
   assert.ok(mobileLabels.length>25);

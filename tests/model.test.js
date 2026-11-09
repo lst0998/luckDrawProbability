@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as model from '../src/model.js';
 import * as chart from '../src/chart-data.js';
-const base = { probability: 5, accounts: 20, draws: 10, prizes: 20, limitPrizes: false };
+const base = { ...model.DEFAULTS, prizes: 10000 };
 const close = (actual, expected, tolerance = 1e-10) => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} should be near ${expected}`);
 
 test('repeated draws give at most one win per account', () => {
@@ -24,33 +24,37 @@ test('four fair accounts match enumerated win counts', () => {
   [16,15,11,5,1].forEach((count,k)=>close(r.atLeast[k],count/16));
 });
 test('default scenario matches analytical expectation and inclusive tails', () => {
-  const r=model.calculate(base), q=1-.95**10;
+  const r=model.calculate(model.DEFAULTS), q=1-.95**10;
   close(r.expected,20*q);
   close(r.atLeast[1],1-.95**200);
   close(r.atLeast[2],1-(1-q)**20-20*q*(1-q)**19);
-  assert.deepEqual(model.calculate(base),r);
+  assert.deepEqual(model.calculate(model.DEFAULTS),r);
   assert.equal('trials' in r,false);
 });
 test('cap combines all higher outcomes at the capped win count', () => {
-  const r=model.calculate({...base,probability:50,accounts:2,draws:1,limitPrizes:true,prizes:1});
+  const r=model.calculate({...base,probability:50,accounts:2,draws:1,prizes:1});
   assert.deepEqual(r.probabilities,[.25,.75]);
   assert.deepEqual(r.atLeast,[1,.75]);
   close(r.expected,.75);
 });
 test('prize caps support the full calculator pool range without growing the outcome domain', () => {
-  const result=model.calculate({...base,accounts:2000,prizes:1000000000,limitPrizes:true});
+  const result=model.calculate({...base,accounts:2000,prizes:1000000000});
   assert.equal(result.probabilities.length,2001);
   close(result.expected,2000*(1-.95**10),1e-8);
-  assert.throws(()=>model.calculate({...base,prizes:1000000001,limitPrizes:true}));
+  assert.throws(()=>model.calculate({...base,prizes:1000000001}));
 });
-test('disabled cap is ignored and certain draws respect one win per account', () => {
-  const r=model.calculate({...base,probability:100,prizes:0});
+test('total prizes always caps wins while each account can win once', () => {
+  const capped=model.calculate({...base,probability:100,prizes:3});
+  assert.equal(capped.expected,3);
+  assert.deepEqual(capped.probabilities,[0,0,0,1]);
+  assert.equal(model.calculate({...base,probability:100,prizes:0}).expected,0);
+  const r=model.calculate({...base,probability:100});
   close(r.expected,20);
   assert.equal(r.probabilities[20],1);
   assert.equal(r.atLeast[20],1);
 });
 test('no draws, accounts, win chance, or available prizes gives no wins', () => {
-  for(const patch of [{draws:0},{accounts:0},{probability:0},{limitPrizes:true,prizes:0}]) {
+  for(const patch of [{draws:0},{accounts:0},{probability:0},{prizes:0}]) {
     const r=model.calculate({...base,...patch});
     assert.equal(r.probabilities[0],1);
     assert.equal(r.atLeast[0],1);
@@ -80,7 +84,6 @@ test('applying a calculator limits the strategy to the total draw pool', () => {
   assert.equal(config.draws,10);
   assert.equal(config.probability,5);
   assert.equal(config.prizes,100);
-  assert.equal(config.limitPrizes,true);
   assert.equal(model.theoreticalCosts(config,30).totalDonations,2000);
   assert.deepEqual(model.strategyLimits(config),{accounts:[0,200],draws:[0,10]});
   assert.throws(()=>model.calculate({...config,accounts:201}));
@@ -123,12 +126,12 @@ test('draw pool constraints handle zero strategies, large pools and manual entry
     assert.throws(()=>model.calculate({...base,poolDrawLimit}));
   }
 });
-test('200 to 2000 accounts increases expected wins tenfold when uncapped', () => {
+test('200 to 2000 accounts increases expected wins tenfold when enough prizes are available', () => {
   const small=model.calculate({...base,accounts:200});
   const large=model.calculate({...base,accounts:2000});
   close(large.expected,small.expected*10,1e-8);
   close(large.probabilities.reduce((a,b)=>a+b,0),1);
-  const capped=model.calculate({...base,accounts:2000,limitPrizes:true,prizes:100});
+  const capped=model.calculate({...base,accounts:2000,prizes:100});
   assert.equal(capped.probabilities.length,101);
   assert.ok(capped.expected<=100);
 });
@@ -153,22 +156,22 @@ test('ticket expectation and exact-win costs use two tickets per prize', () => {
     {wins:2,tickets:4,costPerTicket:2.5,probability:.25},
   ]);
 });
-test('cost curve respects the account limit and optional prize cap', () => {
-  const r=model.theoreticalCosts({...base,limitPrizes:true,prizes:3},10);
+test('cost curve respects the account limit and total prizes', () => {
+  const r=model.theoreticalCosts({...base,prizes:3},10);
   assert.equal(r.costByWins.length,4);
   close(r.costByWins[1].costPerTicket,1000);
   close(r.costByWins[2].costPerTicket,500);
   close(r.costByWins[3].costPerTicket,2000/6);
-  assert.equal(model.theoreticalCosts({...base,limitPrizes:true,prizes:0},10).costByWins.length,1);
+  assert.equal(model.theoreticalCosts({...base,prizes:0},10).costByWins.length,1);
 });
 test('exact cost includes capped expected wins and all planned donations', () => {
-  const r=model.theoreticalCosts({...base,probability:50,accounts:2,draws:1,limitPrizes:true,prizes:1},5);
+  const r=model.theoreticalCosts({...base,probability:50,accounts:2,draws:1,prizes:1},5);
   close(r.expectedPrizes,.75);close(r.expectedTickets,1.5);close(r.costPerTicket,20/3);
   const certain=model.theoreticalCosts({...base,probability:100,accounts:3,draws:4},7);
   close(certain.totalCost,84);close(certain.expectedTickets,6);close(certain.costPerTicket,14);
 });
 test('zero wins has no finite ticket cost, while free donations with wins cost zero', () => {
-  for(const patch of [{probability:0},{accounts:0},{draws:0},{limitPrizes:true,prizes:0}]) {
+  for(const patch of [{probability:0},{accounts:0},{draws:0},{prizes:0}]) {
     const r=model.theoreticalCosts({...base,...patch},10);
     assert.equal(r.expectedTickets,0);assert.equal(r.costPerTicket,null);
     assert.equal(r.costByWins[0].costPerTicket,null);
@@ -178,7 +181,7 @@ test('zero wins has no finite ticket cost, while free donations with wins cost z
   assert.ok(free.costByWins.slice(1).every(row=>row.costPerTicket===0));
 });
 test('invalid inputs are rejected', () => {
-  for(const patch of [{accounts:-1},{accounts:10001},{probability:NaN},{limitPrizes:'false'}]) assert.throws(()=>model.calculate({...base,...patch}));
+  for(const patch of [{accounts:-1},{accounts:10001},{probability:NaN},{prizes:undefined},{prizes:-1},{prizes:1.5}]) assert.throws(()=>model.calculate({...base,...patch}));
   for(const cost of [-1,NaN,Infinity,1000001]) assert.throws(()=>model.theoreticalCosts(base,cost));
 });
 
@@ -215,7 +218,7 @@ test('all outcome charts share the exact cutoff and preserve cumulative sums acr
   assert.deepEqual(chart.visibleOutcomes(below).points.map(row=>row.wins),[0]);
 });
 test('cutoff retains qualifying capped outcomes while omitting intervening rare counts', () => {
-  const config={...base,accounts:1000,draws:1,probability:50,limitPrizes:true,prizes:548};
+  const config={...base,accounts:1000,draws:1,probability:50,prizes:548};
   const result=model.calculate(config);
   const view=chart.visibleOutcomes(result);
   assert.equal(view.points.at(-1).wins,548);
@@ -230,7 +233,7 @@ test('outcome filtering supports an empty view when every outcome is below the c
   close(view.omittedProbability,1);
 });
 test('chart keeps the certain outcome for zero, full, and capped wins', () => {
-  for(const [patch,wins] of [[{accounts:0},0],[{probability:0},0],[{probability:100},20],[{probability:100,limitPrizes:true,prizes:3},3]]) {
+  for(const [patch,wins] of [[{accounts:0},0],[{probability:0},0],[{probability:100},20],[{probability:100,prizes:3},3]]) {
     const view=chart.visibleOutcomes(model.calculate({...base,...patch}));
     assert.deepEqual(view.points,[{wins,chance:1,tail:1}]);
     assert.equal(view.omittedProbability,0);
@@ -263,8 +266,8 @@ test('filtering cost points preserves theoretical expectations and full outcome 
   assert.deepEqual(chart.visibleCostOutcomes(rare),[]);
   close(rare.costPerTicket,30000);
 });
-test('cost filter handles certainty, optional caps, and no possible wins', () => {
-  for(const [patch,wins] of [[{probability:100},20],[{probability:100,limitPrizes:true,prizes:3},3]]) {
+test('cost filter handles certainty, prize totals, and no possible wins', () => {
+  for(const [patch,wins] of [[{probability:100},20],[{probability:100,prizes:3},3]]) {
     const visible=chart.visibleCostOutcomes(model.theoreticalCosts({...base,...patch},30));
     assert.equal(visible.length,1);
     assert.equal(visible[0].wins,wins);

@@ -1,7 +1,7 @@
 export const LIMITS = { probability: [0, 100], accounts: [0, 10000], draws: [0, 10000], prizes: [0, 1000000000] };
 export const COST_LIMITS = [0, 1000000];
 export const TICKETS_PER_PRIZE = 2;
-export const DEFAULTS = { probability: 5, accounts: 20, draws: 10, prizes: 20, limitPrizes: false, poolDrawLimit: null };
+export const DEFAULTS = { probability: 5, accounts: 20, draws: 10, prizes: 20, poolDrawLimit: null };
 export const ESTIMATOR_DEFAULTS = { totalOrders: 1000, drawsPerOrder: 2, totalPrizes: 100 };
 export const ESTIMATOR_LIMITS = { totalOrders: [0, 1000000000], drawsPerOrder: [0, 10000], totalPrizes: LIMITS.prizes };
 
@@ -52,7 +52,7 @@ export function applyCalculator(config, inputs) {
     if (draws > 0) accounts = Math.min(accounts, Math.floor(poolDrawLimit / draws));
   }
   return { ...config, accounts, draws, probability: estimate.probabilityPercent,
-    prizes: inputs.totalPrizes, limitPrizes: true, poolDrawLimit };
+    prizes: inputs.totalPrizes, poolDrawLimit };
 }
 
 export function accountWinChance(percent, draws) {
@@ -80,7 +80,6 @@ function validateConfig(config) {
     const value = config[key];
     if (!Number.isFinite(value) || value < min || value > max || (key !== 'probability' && !Number.isInteger(value))) throw new RangeError(`Invalid ${key}`);
   }
-  if (typeof config.limitPrizes !== 'boolean') throw new RangeError('Invalid limitPrizes');
   if (config.poolDrawLimit != null) {
     const maxPool = ESTIMATOR_LIMITS.totalOrders[1] * ESTIMATOR_LIMITS.drawsPerOrder[1];
     if (!Number.isSafeInteger(config.poolDrawLimit) || config.poolDrawLimit < 0 || config.poolDrawLimit > maxPool) throw new RangeError('Invalid pool draw limit');
@@ -89,9 +88,9 @@ function validateConfig(config) {
 }
 export function calculate(config) {
   validateConfig(config);
-  const { probability, accounts, draws, prizes, limitPrizes } = config;
+  const { probability, accounts, draws, prizes } = config;
   const ownChance = accountWinChance(probability, draws);
-  const cap = limitPrizes ? Math.min(accounts, prizes) : accounts;
+  const cap = Math.min(accounts, prizes);
   const probabilities = new Array(cap + 1).fill(0);
   binomialMass(accounts, ownChance).forEach((mass, wins) => {
     probabilities[Math.min(wins, cap)] += mass;

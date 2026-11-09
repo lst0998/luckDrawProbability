@@ -13,6 +13,6 @@ export default function CostSummary({ costs, donationCost }) {
       <div><span>Expected tickets</span><strong data-testid="expected-tickets">{amount(costs.expectedTickets)}</strong><small>{amount(costs.expectedPrizes)} expected prizes × {TICKETS_PER_PRIZE}</small></div>
       <div className="ticket-cost-result"><span>Theoretical cost per ticket</span><strong data-testid="cost-per-ticket">{amount(costs.costPerTicket)}</strong><small>{costs.costPerTicket === null ? 'No tickets expected' : 'Total cost ÷ expected tickets'}</small></div>
     </div>
-    <p className="cost-note">Uses the mathematical expectation, including your prize cap if enabled. All planned donations are paid; results use the same currency or units as your donation cost.</p>
+    <p className="cost-note">Uses the mathematical expectation, limited by the total prizes available. All planned donations are paid; results use the same currency or units as your donation cost.</p>
   </section>;
 }
