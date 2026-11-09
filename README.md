@@ -15,7 +15,7 @@ Build the static site with `npm run build`; serve the build with `npm run previe
 
 ## Features
 
-The page opens directly with Set the scene and Results, without a promotional header, introduction, or footer.
+The page opens directly with Set the scene and Results. Controls, metric labels, chart axes, values, and tooltips remain visible; slogans, repeated descriptions, chart captions, cutoff notes, and pending-change text are omitted. Input-limit and error messages remain available. The help button next to Export opens calculation details.
 
 - An optional orders calculator estimates per-draw probability from total orders × average draws per order (a fractional coefficient) and total prizes. Use either probability method, then click the shared Calculate button at the bottom of the left panel.
 - Adjustable per-draw win probability, total prizes, your accounts, and draws per account. Direct input includes Total prizes below the probability controls; winnings always respect that total.
@@ -34,7 +34,7 @@ The left-hand **The winning chance** section has **Direct input** and **Calculat
 
 `estimated win probability per draw = min(1, total prizes / estimated total draws)`
 
-This is an equal-draw estimate; account restrictions, prize-allocation rules, and shared-pool depletion can change actual odds. The estimated rate previews immediately, but all input edits remain pending until the shared **Calculate** button at the bottom of the left panel is clicked. This includes probability, total prizes, account strategy, and donation cost. The selected tab determines which probability method is used. A short Changes pending indicator appears when the selected settings differ from the displayed scenario.
+This is an equal-draw estimate; account restrictions, prize-allocation rules, and shared-pool depletion can change actual odds. The estimated rate previews immediately, but all input edits remain pending until the shared **Calculate** button at the bottom of the left panel is clicked. This includes probability, total prizes, account strategy, and donation cost. The selected tab determines which probability method is used.
 
 In Calculate mode, the button copies the rate rounded to two decimal places and the calculator’s total prizes into the scenario, and constrains strategy draws to total orders × average draws per order. If needed, accounts are reduced while retaining draws per account; if one account alone exceeds the pool, draws per account is reduced first. Whole draws use the exact decimal product floored to an integer. After calculation, strategy inputs clamp to the applied pool and show a short Maximum hint. Editing calculator inputs releases the old draft pool constraint so a new pool and strategy can be submitted together. Direct input uses the manual probability and total prizes without a calculator draw-pool constraint.
 

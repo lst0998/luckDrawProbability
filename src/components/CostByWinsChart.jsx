@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Ticket } from 'lucide-react';
 import { formatAmount as amount, formatProbability as percent } from '../format.js';
 import { visibleCostOutcomes } from '../chart-data.js';
 
@@ -42,17 +41,15 @@ export default function CostByWinsChart({ costs }) {
 
   return <section className="card outcome-card cost-curve-card" id="cost-by-wins" aria-labelledby="cost-curve-title">
     <div className="chart-header">
-      <div><div className="eyebrow">YOUR COST AT EACH OUTCOME</div><h2 id="cost-curve-title">Cost per ticket, by prizes won</h2><p>A total donation cost of {amount(costs.totalCost)}, spread across 2 tickets per prize.</p></div>
-      <span className="pill"><Ticket size={12}/>2 tickets / prize</span>
+      <h2 id="cost-curve-title">Cost per ticket by prizes won</h2>
     </div>
     <div className="cost-reference">
       <span className="reference-label"><i/>Theoretical cost per ticket</span>
       <strong data-testid="chart-theoretical-cost">{amount(costs.costPerTicket)}</strong>
-      <small>{costs.costPerTicket === null ? 'Undefined when no tickets are expected.' : 'Total donation cost ÷ expected tickets, using every outcome.'}</small>
     </div>
     <div className="chart-wrap" ref={chartRef} onMouseLeave={() => setActiveWin(null)}>
       {points.length > 0 ? <>
-        <div className="axis-headings"><span>Cost per ticket · your input units</span></div>
+        <div className="axis-headings"><span>Cost per ticket</span></div>
         <svg className="cost-by-wins-chart" viewBox={`0 0 ${W} ${H}`} role="slider" tabIndex="0"
           aria-label="Cost per ticket by prizes won" aria-valuemin={minWin} aria-valuemax={maxWin}
           aria-valuenow={current?.wins ?? minWin}
@@ -92,9 +89,7 @@ export default function CostByWinsChart({ costs }) {
           <span>Chance of exactly this outcome<b>{percent(current.probability)}</b></span>
         </div>}
         <div className="x-axis-title">Number of prizes you win</div>
-      </> : <p className="cost-curve-empty">No winning outcome has a chance of 0.1% or higher.</p>}
+      </> : <p className="cost-curve-empty">No outcomes to display.</p>}
     </div>
-    <div className="zero-win-note"><Ticket size={14}/><span><strong>0 wins = 0 tickets.</strong> No finite cost per ticket.</span></div>
-    <p className="chart-caption">Only outcomes with a chance of at least 0.1% are plotted. Cost per ticket = total donation cost ÷ (prizes won × 2). The dashed line shows the theoretical cost using every outcome. Hover, tap, or use arrow keys to explore.</p>
   </section>;
 }

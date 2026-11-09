@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChartNoAxesColumnIncreasing, TrendingDown } from 'lucide-react';
 import { formatProbability as pct } from '../format.js';
 import { visibleOutcomes } from '../chart-data.js';
 
@@ -16,7 +15,7 @@ function ProbabilityPlot({ result, cumulative = false }) {
     return () => observer.disconnect();
   }, []);
 
-  const { points, trimmed } = useMemo(() => visibleOutcomes(result), [result]);
+  const { points } = useMemo(() => visibleOutcomes(result), [result]);
   const left = 43, right = 20, top = 23, bottom = 42;
   const firstWin = points[0]?.wins ?? 0, lastWin = points.at(-1)?.wins ?? firstWin;
   const countSpan = lastWin - firstWin + 1;
@@ -59,23 +58,11 @@ function ProbabilityPlot({ result, cumulative = false }) {
   return (
     <section className={`card outcome-card ${cumulative ? 'cumulative-card' : 'individual-card'}`} id={cumulative ? 'cumulative-outcomes' : 'outcomes'}>
       <div className="chart-header">
-        <div>
-          <div className="eyebrow">{cumulative ? 'YOUR CUMULATIVE CHANCES' : 'YOUR POSSIBLE OUTCOMES'}</div>
-          <h2>{cumulative ? 'Chance of winning X or more prizes' : 'What could you win?'}</h2>
-          <p>{cumulative ? 'Includes exactly X prizes and every higher outcome.' : 'The chance of each individual prize outcome.'}</p>
-        </div>
-        <span className="pill"><span className="live-dot"/>Calculated</span>
-      </div>
-
-      <div className="chart-legend">
-        <span className="chart-legend-label">
-          <span className={cumulative ? 'legend-line' : 'legend-square'}/>
-          {cumulative ? 'Chance of winning X or more prizes' : 'Chance of winning exactly this many prizes'}
-        </span>
+        <h2>{cumulative ? 'Chance of winning X or more prizes' : 'Prizes won'}</h2>
       </div>
 
       <div className="chart-wrap" ref={chartRef} onMouseLeave={() => setActive(null)}>
-        {points.length === 0 ? <p className="probability-empty">No outcome has an individual chance of 0.1% or higher.</p> : <>
+        {points.length === 0 ? <p className="probability-empty">No outcomes to display.</p> : <>
         <div className="axis-headings"><span>{cumulative ? 'Cumulative probability' : 'Individual probability'}</span></div>
         <div className="probability-scroll-frame">
           <svg className="probability-axis" width={left} height={H} aria-hidden="true">
@@ -119,15 +106,8 @@ function ProbabilityPlot({ result, cumulative = false }) {
       </div>
 
       {cumulative && <div className="cumulative-strip">
-        <div className="cumulative-label"><TrendingDown size={17}/><span>YOUR CUMULATIVE CHANCES</span></div>
         {[1, 2, 3].map(k => <div key={k}><span>{k} or more prizes</span><strong>{pct(result.atLeast[k] ?? 0)}</strong></div>)}
       </div>}
-      <p className="chart-caption">
-        {cumulative ? <TrendingDown size={13}/> : <ChartNoAxesColumnIncreasing size={13}/>}
-        {cumulative ? '“2 or more prizes” adds the chances of winning exactly 2, 3, 4… prizes.' : 'Each bar shows one individual prize count.'}
-        {' '}Hover, tap, or focus a point to explore.{scrollable && ' Scroll sideways to see every count.'}
-      </p>
-      {trimmed && <p className="chart-domain-note">Outcomes below 0.1% individual chance are hidden. Calculations and CSV include every outcome.</p>}
     </section>
   );
 }

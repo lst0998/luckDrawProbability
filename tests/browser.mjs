@@ -48,7 +48,7 @@ try {
   assert.match(draftCsv,/^accounts,20$/m);
   assert.match(draftCsv,/^donation_cost,30$/m);
   assert.match(draftCsv,/^probability,5$/m);
-  assert.equal(await page.getByTestId('pending-changes').innerText(),'Changes pending');
+  assert.equal(await page.getByTestId('pending-changes').count(),0);
   await calculate();
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'7.00');
   assert.equal(await page.getByTestId('total-cost').innerText(),'600.00');
@@ -101,7 +101,7 @@ try {
   assert.equal(await page.getByTestId('total-cost').innerText(),'6,000.00');
   assert.equal(await page.locator('#probability').inputValue(),'50','A worker result must not overwrite later edits');
   assert.equal(await page.locator('#donationCost').inputValue(),'40');
-  assert.equal(await page.getByTestId('pending-changes').innerText(),'Changes pending');
+  assert.equal(await page.getByTestId('pending-changes').count(),0);
   await calculate();
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'19.98');
   assert.equal(await page.getByTestId('total-cost').innerText(),'8,000.00');
@@ -200,7 +200,7 @@ try {
   await field('totalOrders',10);
   await field('totalPrizes',1000);
   assert.equal(await page.getByTestId('estimated-win-probability').innerText(),'100.00%');
-  assert.match(await estimator.locator('.estimator-notice').innerText(),/capped at 100%/);
+  assert.match(await estimator.locator('.estimator-notice').innerText(),/Maximum win rate: 100%/);
   await applyEstimate.click();
   await ready();
   assert.equal(await page.locator('#probability').inputValue(),'100');
@@ -235,8 +235,6 @@ try {
   await field('draws',1000);
   assert.equal(await page.locator('#draws').inputValue(),'10');
   assert.equal(await page.locator('#draws-hint').innerText(),'Maximum: 10.');
-  assert.doesNotMatch(await page.locator('.insight').innerText(),/802/,'The summary must not present an uncapped expectation');
-  assert.doesNotMatch(await page.locator('.insight').innerText(),/Each account has a/,'A capped result must not imply the uncapped rate is every account’s final chance');
   for(const chart of [individualChart,cumulativeChart,page.locator('#cost-by-wins')]) {
     assert.ok((await chart.locator('.x-label').allTextContents()).every(label=>Number(label)<=100),'Every chart must respect the calculator pool');
   }
@@ -339,7 +337,7 @@ try {
     const scrollBox=await chart.locator('.probability-scroll').boundingBox();
     const titleBox=await chart.locator('.x-axis-title').boundingBox();
     assert.ok(titleBox.y>=scrollBox.y+scrollBox.height+6,'The x-axis title must have clear space below the scrollbar');
-    assert.match(await chart.locator('.chart-domain-note').innerText(),/below 0.1% individual chance are hidden/);
+    assert.equal(await chart.locator('.chart-domain-note').count(),0);
   }
   await individualChart.getByRole('button',{name:'Exactly 500 prizes: 2.52%',exact:true}).hover();
   assert.match(await individualChart.locator('.chart-tooltip').innerText(),/Exactly 500 prizes/);
@@ -384,7 +382,7 @@ try {
   assert.deepEqual(await costChart.locator('.x-label').allTextContents(),Array.from({length:14},(_,i)=>String(i+2)));
   assert.equal(await page.getByTestId('chart-theoretical-cost').innerText(),await page.getByTestId('cost-per-ticket').innerText());
   assert.ok(Math.abs(Number(await costChart.locator('.theoretical-cost-line').getAttribute('data-value'))-2000/(40*(1-.95**10)))<1e-10);
-  assert.match(await costChart.locator('.chart-caption').innerText(),/at least 0.1%/);
+  assert.equal(await costChart.locator('.chart-caption').count(),0);
   await costCurve.focus();
   await page.keyboard.press('Home');
   for(let wins=2;wins<=15;wins++) {
@@ -392,7 +390,7 @@ try {
     await page.keyboard.press('ArrowRight');
   }
   await costChart.screenshot({path:'/tmp/lucky-lab-filtered-cost.png'});
-  assert.match(await costChart.locator('.zero-win-note').innerText(),/No finite cost per ticket/);
+  assert.equal(await costChart.locator('.zero-win-note').count(),0);
   console.log('PASS donation input, theoretical cost and keyboard cost-by-wins graph');
   await field('probability',100);
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'20.00');
@@ -415,7 +413,6 @@ try {
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'0.00');
   assert.equal(await page.getByTestId('cost-per-ticket').innerText(),'—');
   assert.ok(await page.getByText('No tickets expected',{exact:true}).isVisible());
-  assert.match(await page.locator('.insight').innerText(),/No prizes are available/);
   await field('prizes',20);
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes',''),'20.00');
   await field('probability',0);
@@ -428,7 +425,7 @@ try {
   await field('probability',.05);
   for (const chart of [individualChart,cumulativeChart]) assert.deepEqual(await chart.locator('.x-label').allTextContents(),['0']);
   assert.equal(await costCurve.count(),0,'All positive outcomes below 0.1% must be hidden');
-  assert.match(await costChart.locator('.cost-curve-empty').innerText(),/No winning outcome has a chance of 0.1% or higher/);
+  assert.match(await costChart.locator('.cost-curve-empty').innerText(),/No outcomes to display/);
   assert.equal(await page.getByTestId('chart-theoretical-cost').innerText(),'10,000.00','Filtering must not remove the theoretical value');
   await field('probability',.1);
   for (const chart of [individualChart,cumulativeChart]) assert.deepEqual(await chart.locator('.x-label').allTextContents(),['0','1'],'Exactly 0.1% must remain visible in every graph');
@@ -481,7 +478,7 @@ try {
   assert.equal(distribution[1][4],3000);
   assert.equal(distribution[2][4],1500);
   console.log('PASS CSV download with scenario and cumulative probabilities');
-  await page.getByRole('button',{name:'Understand the model'}).click();
+  await page.getByRole('button',{name:'Calculation details',exact:true}).click();
   await page.locator('dialog[open]').waitFor();
   assert.match(await page.locator('dialog').innerText(),/binomial distribution/i);
   assert.doesNotMatch(await page.locator('dialog').innerText(),/simulat|rounds/i);
@@ -651,7 +648,7 @@ try {
   await field('probability',0);
   await page.getByRole('alert').waitFor();
   assert.ok(await page.locator('.cost-section').isHidden(),'Failed calculations must not show stale costs');
-  assert.ok(await page.locator('.insight').isHidden(),'Failed calculations must not show a stale summary');
+  assert.equal(await page.locator('.insight').count(),0);
   assert.equal((await page.getByTestId('expected').innerText()).replace('prizes','').trim(),'—','Failed new scenario must not display stale results');
   assert.ok(await page.getByRole('button',{name:'Export results',exact:true}).isDisabled(),'Failed new scenario must not export stale results');
   await page.unroute('**/*calculation.worker*');
