@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Minus, Plus, SlidersHorizontal, Users, Ticket, RotateCcw, ArrowRight, Info, PencilLine, Calculator } from 'lucide-react';
+import { Minus, Plus, SlidersHorizontal, Users, Ticket, RotateCcw, Info, PencilLine, Calculator } from 'lucide-react';
 import { LIMITS, COST_LIMITS, strategyLimits } from '../model.js';
 
 export function NumberField({ label, value, onChange, name, suffix, step = 1, limits, allowDecimals = false, disabled = false, resetVersion = 0 }) {
@@ -73,6 +73,5 @@ export default function Controls({ config, onChange, onReset, donationCost, onCo
       {config.poolDrawLimit != null && <p className="field-note" data-testid="strategy-draw-limit">Maximum: {config.poolDrawLimit.toLocaleString()} total draws</p>}
       <p className="field-note"><Info size={12}/>Each account can win one prize, at most.</p>
     </div>
-    <div className="panel-footer"><span className="live-dot"/>Changes update your results automatically<ArrowRight size={13}/></div>
   </aside>;
 }
