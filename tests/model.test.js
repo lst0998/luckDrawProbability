@@ -183,7 +183,7 @@ test('invalid inputs are rejected', () => {
 });
 
 
-test('chart trims negligible tails without grouping or renormalizing outcomes', () => {
+test('charts hide individual outcomes below 0.1% without grouping or renormalizing', () => {
   const result={probabilities:[.000001,.4,.599998,.000001],atLeast:[1,.999999,.599999,.000001]};
   const snapshot=structuredClone(result);
   const view=chart.visibleOutcomes(result);
@@ -192,18 +192,42 @@ test('chart trims negligible tails without grouping or renormalizing outcomes', 
   assert.equal(view.trimmed,true);
   assert.deepEqual(result,snapshot);
 });
-test('high account counts keep consecutive individual wins and at least 99.99% of probability', () => {
+test('high account counts retain every outcome meeting the 0.1% cutoff', () => {
   const result=model.calculate({...base,accounts:1000,probability:50,draws:1});
   const view=chart.visibleOutcomes(result);
-  assert.ok(view.points.length>100 && view.points.length<200);
+  assert.deepEqual(view.points.map(row=>row.wins),result.probabilities.flatMap((p,wins)=>p>=.001 ? [wins] : []));
   assert.ok(view.points[0].wins>0 && view.points.at(-1).wins<1000);
-  assert.ok(view.omittedProbability<.0001);
-  assert.ok(view.points.reduce((sum,row)=>sum+row.chance,0)>.9999);
+  close(view.omittedProbability+view.points.reduce((sum,row)=>sum+row.chance,0),1);
   view.points.forEach((row,i)=>{
     assert.equal(row.wins,view.points[0].wins+i);
     assert.equal(row.chance,result.probabilities[row.wins]);
     assert.equal(row.tail,result.atLeast[row.wins]);
   });
+});
+test('all outcome charts share the exact cutoff and preserve cumulative sums across hidden counts', () => {
+  const result={probabilities:[.9980001,.0009999,.001],atLeast:[1,.0019999,.001]};
+  const view=chart.visibleOutcomes(result);
+  assert.deepEqual(view.points,[{wins:0,chance:.9980001,tail:1},{wins:2,chance:.001,tail:.001}]);
+  close(view.omittedProbability,.0009999);
+  const exact=model.calculate({...base,accounts:1,draws:1,probability:.1});
+  assert.deepEqual(chart.visibleOutcomes(exact).points.map(row=>row.wins),[0,1]);
+  const below=model.calculate({...base,accounts:1,draws:1,probability:.0999999});
+  assert.deepEqual(chart.visibleOutcomes(below).points.map(row=>row.wins),[0]);
+});
+test('cutoff retains qualifying capped outcomes while omitting intervening rare counts', () => {
+  const config={...base,accounts:1000,draws:1,probability:50,limitPrizes:true,prizes:548};
+  const result=model.calculate(config);
+  const view=chart.visibleOutcomes(result);
+  assert.equal(view.points.at(-1).wins,548);
+  assert.ok(view.points.at(-2).wins<547);
+  assert.deepEqual(view.points.filter(row=>row.wins>0).map(row=>row.wins),chart.visibleCostOutcomes(model.theoreticalCosts(config,30)).map(row=>row.wins));
+  view.points.forEach(row=>assert.equal(row.tail,result.atLeast[row.wins]));
+});
+test('outcome filtering supports an empty view when every outcome is below the cutoff', () => {
+  const result={probabilities:Array(2000).fill(.0005),atLeast:Array.from({length:2000},(_,i)=>1-i*.0005)};
+  const view=chart.visibleOutcomes(result);
+  assert.equal(view.points.length,0);
+  close(view.omittedProbability,1);
 });
 test('chart keeps the certain outcome for zero, full, and capped wins', () => {
   for(const [patch,wins] of [[{accounts:0},0],[{probability:0},0],[{probability:100},20],[{probability:100,limitPrizes:true,prizes:3},3]]) {

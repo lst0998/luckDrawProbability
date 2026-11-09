@@ -16,23 +16,31 @@ function ProbabilityPlot({ result, cumulative = false }) {
     return () => observer.disconnect();
   }, []);
 
-  const { points, omittedProbability, trimmed } = useMemo(() => visibleOutcomes(result), [result]);
+  const { points, trimmed } = useMemo(() => visibleOutcomes(result), [result]);
   const left = 43, right = 20, top = 23, bottom = 42;
-  const minUnit = Math.max(22, String(points.at(-1).wins).length * 7 + 12);
-  const W = Math.max(chartWidth - left, points.length * minUnit + right);
+  const firstWin = points[0]?.wins ?? 0, lastWin = points.at(-1)?.wins ?? firstWin;
+  const countSpan = lastWin - firstWin + 1;
+  const minUnit = Math.max(22, String(lastWin).length * 7 + 12);
+  const W = Math.max(chartWidth - left, countSpan * minUnit + right);
   const H = chartWidth < 450 ? 230 : 270;
   const scrollable = W > chartWidth - left;
   const plotW = W - right, plotH = H - top - bottom;
-  const peakChance = Math.max(...points.map(point => point.chance));
+  const peakChance = Math.max(0, ...points.map(point => point.chance));
   const yStep = peakChance < .1 ? .01 : .05;
   const maxY = cumulative ? 1 : Math.min(1, Math.max(yStep, Math.ceil(peakChance / yStep) * yStep));
-  const unit = plotW / points.length;
-  const x = i => unit * (i + .5);
+  const unit = plotW / countSpan;
+  const x = i => unit * (points[i].wins - firstWin + .5);
   const y = probability => top + plotH * (1 - probability / maxY);
   const current = active === null ? null : points[active];
   const tooltipWidth = Math.min(240, chartWidth - 16);
-  const linePath = points.map((b, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(b.tail)}`).join(' ');
-  const areaPath = `${linePath} L ${x(points.length - 1)} ${y(0)} L ${x(0)} ${y(0)} Z`;
+  const segments = [];
+  points.forEach((point, i) => {
+    if (i === 0 || point.wins !== points[i - 1].wins + 1) segments.push([]);
+    segments.at(-1).push(i);
+  });
+  const segmentPath = indexes => indexes.map((index, i) => `${i === 0 ? 'M' : 'L'} ${x(index)} ${y(points[index].tail)}`).join(' ');
+  const linePath = segments.map(segmentPath).join(' ');
+  const areaPath = segments.map(indexes => `${segmentPath(indexes)} L ${x(indexes.at(-1))} ${y(0)} L ${x(indexes[0])} ${y(0)} Z`).join(' ');
   const outcomeLabel = bin => cumulative
     ? `${bin.wins} or more prizes`
     : `Exactly ${bin.wins} ${bin.wins === 1 ? 'prize' : 'prizes'}`;
@@ -42,8 +50,8 @@ function ProbabilityPlot({ result, cumulative = false }) {
     const peakIndex = points.reduce((best, point, i) => point.chance > points[best].chance ? i : best, 0);
     // Open wide charts around the likely outcomes; all retained counts are scrollable.
     const scroller = scrollRef.current;
-    if (scroller) {
-      scroller.scrollLeft = unit * (peakIndex + .5) - (chartWidth - left) / 2;
+    if (scroller && points.length) {
+      scroller.scrollLeft = unit * (points[peakIndex].wins - firstWin + .5) - (chartWidth - left) / 2;
       setScrollLeft(scroller.scrollLeft);
     }
   }, [points, unit, chartWidth]);
@@ -67,6 +75,7 @@ function ProbabilityPlot({ result, cumulative = false }) {
       </div>
 
       <div className="chart-wrap" ref={chartRef} onMouseLeave={() => setActive(null)}>
+        {points.length === 0 ? <p className="probability-empty">No outcome has an individual chance of 0.1% or higher.</p> : <>
         <div className="axis-headings"><span>{cumulative ? 'Cumulative probability' : 'Individual probability'}</span></div>
         <div className="probability-scroll-frame">
           <svg className="probability-axis" width={left} height={H} aria-hidden="true">
@@ -83,7 +92,7 @@ function ProbabilityPlot({ result, cumulative = false }) {
             <line x1={0} x2={W - right} y1={top + plotH * i / 4} y2={top + plotH * i / 4} stroke="#eaeaf0" strokeDasharray={i === 4 ? '0' : '3 5'}/>
           </g>)}
           {points.map((bin, i) => <g key={i}>
-            {active === i && <rect x={i * unit} y={top} width={unit} height={plotH} fill={cumulative ? '#edf6f1' : '#f1eefb'}/>}
+            {active === i && <rect x={x(i) - unit / 2} y={top} width={unit} height={plotH} fill={cumulative ? '#edf6f1' : '#f1eefb'}/>}
             {!cumulative && <rect x={x(i) - unit * .29} y={y(bin.chance)} width={unit * .58} height={plotH * bin.chance / maxY} rx="5" fill={active === i ? '#7152cd' : 'url(#barFill)'}/>}
             <text x={x(i)} y={H - 21} textAnchor="middle" className="axis-text x-label">{bin.wins}</text>
           </g>)}
@@ -94,7 +103,7 @@ function ProbabilityPlot({ result, cumulative = false }) {
           </>}
           {points.map((bin, i) => <rect key={i} tabIndex="0" role="button"
             aria-label={`${outcomeLabel(bin)}: ${pct(cumulative ? bin.tail : bin.chance)}`}
-            x={i * unit} y={top - 8} width={unit} height={plotH + 20} fill="transparent"
+            x={x(i) - unit / 2} y={top - 8} width={unit} height={plotH + 20} fill="transparent"
             onMouseEnter={() => setActive(i)} onFocus={() => setActive(i)} onBlur={() => setActive(null)} onClick={() => setActive(i)}
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActive(i); } }}/>
           )}
@@ -106,6 +115,7 @@ function ProbabilityPlot({ result, cumulative = false }) {
           <span><i className={cumulative ? 'green-dot' : 'purple-dot'}/>{cumulative ? 'Cumulative chance' : 'Chance of this outcome'}<b>{pct(cumulative ? current.tail : current.chance)}</b></span>
         </div>}
         <div className="x-axis-title">{cumulative ? 'Number of prizes (X or more)' : 'Number of prizes you win'}</div>
+        </>}
       </div>
 
       {cumulative && <div className="cumulative-strip">
@@ -117,7 +127,7 @@ function ProbabilityPlot({ result, cumulative = false }) {
         {cumulative ? '“2 or more prizes” adds the chances of winning exactly 2, 3, 4… prizes.' : 'Each bar shows one individual prize count.'}
         {' '}Hover, tap, or focus a point to explore.{scrollable && ' Scroll sideways to see every count.'}
       </p>
-      {trimmed && <p className="chart-domain-note">Showing counts {points[0].wins} through {points.at(-1).wins}. Hidden tails: {pct(omittedProbability)} combined chance. Calculations and CSV include every outcome.</p>}
+      {trimmed && <p className="chart-domain-note">Outcomes below 0.1% individual chance are hidden. Calculations and CSV include every outcome.</p>}
     </section>
   );
 }

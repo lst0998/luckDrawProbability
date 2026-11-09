@@ -31,13 +31,13 @@ try {
   const cumulativeChart = page.locator('#cumulative-outcomes');
   assert.equal(await page.locator('svg.outcome-chart').count(),2,'Individual and cumulative outcomes must have separate graphs');
   assert.equal(await individualChart.locator('svg path').count(),0,'Individual graph must contain bars without a cumulative line');
-  await individualChart.getByRole('button',{name:/^Exactly 1 prizes?:/}).hover();
-  assert.match(await individualChart.locator('.chart-tooltip').innerText(),/Exactly 1/);
+  await individualChart.getByRole('button',{name:/^Exactly 2 prizes?:/}).hover();
+  assert.match(await individualChart.locator('.chart-tooltip').innerText(),/Exactly 2/);
   assert.doesNotMatch(await individualChart.locator('.chart-tooltip').innerText(),/More than/);
-  await cumulativeChart.getByRole('button',{name:/^1 or more prizes:/}).hover();
-  assert.match(await cumulativeChart.locator('.chart-tooltip').innerText(),/1 or more prizes/);
+  await cumulativeChart.getByRole('button',{name:/^2 or more prizes:/}).hover();
+  assert.match(await cumulativeChart.locator('.chart-tooltip').innerText(),/2 or more prizes/);
   assert.doesNotMatch(await page.locator('body').innerText(),/more than/i);
-  assert.equal(await cumulativeChart.getByText('2 or more prizes',{exact:true}).count(),1);
+  assert.equal(await cumulativeChart.locator('.cumulative-strip').getByText('2 or more prizes',{exact:true}).count(),1);
   assert.ok((await cumulativeChart.locator('.cumulative-strip').innerText()).includes('99.95%'),'High cumulative chances must not round to certainty');
   console.log('PASS independent outcome and inclusive X-or-more graphs');
   const directTab=page.getByRole('tab',{name:'Direct input',exact:true});
@@ -232,7 +232,7 @@ try {
   await field('probability',50);
   for(const chart of [individualChart,cumulativeChart]) {
     const labels=await chart.locator('.x-label').allTextContents();
-    assert.ok(labels.length>100 && labels.length<200,'Only negligible tails should be trimmed');
+    assert.deepEqual(labels,Array.from({length:81},(_,i)=>String(460+i)),'Only outcomes with at least 0.1% individual probability should remain');
     labels.forEach((label,i)=>{
       assert.match(label,/^\d+$/,'Each label must be one integer, never a range');
       if(i) assert.equal(Number(label),Number(labels[i-1])+1,'Every retained integer must be represented');
@@ -241,13 +241,26 @@ try {
     const scrollBox=await chart.locator('.probability-scroll').boundingBox();
     const titleBox=await chart.locator('.x-axis-title').boundingBox();
     assert.ok(titleBox.y>=scrollBox.y+scrollBox.height+6,'The x-axis title must have clear space below the scrollbar');
-    assert.match(await chart.locator('.chart-domain-note').innerText(),/Hidden tails: <0.01%/);
+    assert.match(await chart.locator('.chart-domain-note').innerText(),/below 0.1% individual chance are hidden/);
   }
   await individualChart.getByRole('button',{name:'Exactly 500 prizes: 2.52%',exact:true}).hover();
   assert.match(await individualChart.locator('.chart-tooltip').innerText(),/Exactly 500 prizes/);
   await cumulativeChart.getByRole('button',{name:'500 or more prizes: 51.26%',exact:true}).hover();
   assert.match(await cumulativeChart.locator('.chart-tooltip').innerText(),/51.26%/);
   await individualChart.screenshot({path:'/tmp/lucky-lab-high-accounts.png'});
+  await page.getByRole('checkbox',{name:'Limit total prizes'}).check();
+  await ready();
+  await field('prizes',548);
+  for (const chart of [individualChart,cumulativeChart]) {
+    const labels=await chart.locator('.x-label').allTextContents();
+    assert.deepEqual(labels,Array.from({length:81},(_,i)=>String(460+i)).concat('548'));
+    const coordinate=async win=>Number(await chart.locator('.x-label').filter({hasText:new RegExp(`^${win}$`)}).getAttribute('x'));
+    assert.ok(Math.abs((await coordinate(548)-await coordinate(540))/(await coordinate(540)-await coordinate(539))-8)<1e-8,'Hidden counts must retain their numeric spacing');
+  }
+  assert.equal(((await cumulativeChart.locator('.outcome-chart path[fill="none"]').getAttribute('d')).match(/M/g)||[]).length,2,'The cumulative curve must break across hidden counts');
+  await cumulativeChart.getByRole('button',{name:'548 or more prizes: 0.13%',exact:true}).hover();
+  assert.match(await cumulativeChart.locator('.chart-tooltip').innerText(),/0.13%/);
+  await cumulativeChart.screenshot({path:'/tmp/lucky-lab-filtered-gap.png'});
   await page.getByRole('button',{name:'Reset to example',exact:true}).click();
   await ready();
   console.log('PASS individual integers at high account counts, accurate tooltips and costs below probability graphs');
@@ -317,10 +330,12 @@ try {
   await field('accounts',1);
   await field('draws',1);
   await field('probability',.05);
+  for (const chart of [individualChart,cumulativeChart]) assert.deepEqual(await chart.locator('.x-label').allTextContents(),['0']);
   assert.equal(await costCurve.count(),0,'All positive outcomes below 0.1% must be hidden');
   assert.match(await costChart.locator('.cost-curve-empty').innerText(),/No winning outcome has a chance of 0.1% or higher/);
   assert.equal(await page.getByTestId('chart-theoretical-cost').innerText(),'10,000.00','Filtering must not remove the theoretical value');
   await field('probability',.1);
+  for (const chart of [individualChart,cumulativeChart]) assert.deepEqual(await chart.locator('.x-label').allTextContents(),['0','1'],'Exactly 0.1% must remain visible in every graph');
   assert.equal(await costCurve.count(),1,'Exactly 0.1% must remain visible');
   assert.deepEqual(await costChart.locator('.x-label').allTextContents(),['1']);
   await costCurve.focus();
