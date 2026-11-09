@@ -51,3 +51,7 @@ main { padding-top: 28px; padding-bottom: 28px; }
 .chart-header h2, .card-section-header h2 { margin-top: 0; }
 .cumulative-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cumulative-strip > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.simple-header { height: 56px; }
+.simple-brand { display: inline-flex; align-items: center; gap: 10px; color: #7055b3; text-decoration: none; }
+.simple-brand h1 { margin: 0; color: #363145; font-size: 20px; font-weight: 600; line-height: 1.2; letter-spacing: -.4px; }

@@ -81,7 +81,7 @@ export default function App() {
     const a=document.createElement('a');a.href=url;a.download='lucky-lab-results.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setExported(true);setTimeout(()=>setExported(false),2000);
   };
   const highestComparison=Math.max(1,...comparisons.map(c=>c.expected));
-  return <><main id="lab">
+  return <><header className="site-header simple-header"><div className="header-inner"><a className="simple-brand" href="#lab" aria-label="Lucky Lab"><Sparkles size={20} aria-hidden="true"/><h1>Lucky Lab</h1></a></div></header><main id="lab">
     <div className="workspace"><Controls config={controlConfig} onChange={update} onReset={reset} donationCost={draftDonationCost} onCostChange={setDraftDonationCost} resetVersion={resetVersion}
       method={method} onMethodChange={setMethod} onCalculate={calculate} busy={busy} calculateDisabled={busy || (method==='calculate' && estimate.probabilityPercent===null)}
       winningChanceCalculator={<WinChanceCalculator inputs={estimatorInputs} estimate={estimate} resetVersion={resetVersion}

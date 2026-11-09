@@ -15,7 +15,7 @@ Build the static site with `npm run build`; serve the build with `npm run previe
 
 ## Features
 
-The page opens directly with Set the scene and Results. Controls, metric labels, chart axes, values, and tooltips remain visible; slogans, repeated descriptions, chart captions, cutoff notes, and pending-change text are omitted. Input-limit and error messages remain available. The help button next to Export opens calculation details.
+A compact Lucky Lab header sits above Set the scene and Results. Controls, metric labels, chart axes, values, and tooltips remain visible; slogans, repeated descriptions, chart captions, cutoff notes, and pending-change text are omitted. Input-limit and error messages remain available. The help button next to Export opens calculation details.
 
 - An optional orders calculator estimates per-draw probability from total orders × average draws per order (a fractional coefficient) and total prizes. Use either probability method, then click the shared Calculate button at the bottom of the left panel.
 - Adjustable per-draw win probability, total prizes, your accounts, and draws per account. Direct input includes Total prizes below the probability controls; winnings always respect that total.
