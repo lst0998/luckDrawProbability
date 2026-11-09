@@ -157,6 +157,9 @@ try {
       if(i) assert.equal(Number(label),Number(labels[i-1])+1,'Every retained integer must be represented');
     });
     assert.ok(await chart.locator('.probability-scroll').evaluate(el=>el.scrollWidth>el.clientWidth),'Wide plots should scroll without combining outcomes');
+    const scrollBox=await chart.locator('.probability-scroll').boundingBox();
+    const titleBox=await chart.locator('.x-axis-title').boundingBox();
+    assert.ok(titleBox.y>=scrollBox.y+scrollBox.height+6,'The x-axis title must have clear space below the scrollbar');
     assert.match(await chart.locator('.chart-domain-note').innerText(),/Hidden tails: <0.01%/);
   }
   await individualChart.getByRole('button',{name:'Exactly 500 prizes: 2.52%',exact:true}).hover();
@@ -404,6 +407,11 @@ try {
   const chartBox=await individualChart.boundingBox();
   assert.ok(tooltipBox.x>=chartBox.x && tooltipBox.x+tooltipBox.width<=chartBox.x+chartBox.width,'Edge tooltip must remain fully inside the mobile card');
   assert.ok(await individualChart.locator('.probability-scroll').evaluate(el=>el.scrollLeft>0));
+  for (const chart of [individualChart,cumulativeChart]) {
+    const scrollBox=await chart.locator('.probability-scroll').boundingBox();
+    const titleBox=await chart.locator('.x-axis-title').boundingBox();
+    assert.ok(titleBox.y>=scrollBox.y+scrollBox.height+6,'Mobile x-axis titles must remain below the scrollbar');
+  }
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Scrollable charts must not widen the mobile page');
   await individualChart.screenshot({path:'/tmp/lucky-lab-high-accounts-mobile.png'});
   console.log('PASS mobile high-account integers and keyboard scrolling');
