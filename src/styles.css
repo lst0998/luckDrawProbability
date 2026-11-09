@@ -45,3 +45,5 @@ h1>span{position:relative;display:inline-block}h1>span>svg{position:absolute;lef
 .pending-changes { display: block; margin-bottom: 10px; color: #82738f; font-size: 11px; text-align: center; }
 
 .insight[hidden] { display: none; }
+
+main { padding-top: 28px; padding-bottom: 28px; }

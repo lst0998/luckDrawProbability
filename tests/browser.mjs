@@ -481,7 +481,7 @@ try {
   assert.equal(distribution[1][4],3000);
   assert.equal(distribution[2][4],1500);
   console.log('PASS CSV download with scenario and cumulative probabilities');
-  await page.getByRole('button',{name:'How it works'}).click();
+  await page.getByRole('button',{name:'Understand the model'}).click();
   await page.locator('dialog[open]').waitFor();
   assert.match(await page.locator('dialog').innerText(),/binomial distribution/i);
   assert.doesNotMatch(await page.locator('dialog').innerText(),/simulat|rounds/i);

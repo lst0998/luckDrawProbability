@@ -15,6 +15,8 @@ Build the static site with `npm run build`; serve the build with `npm run previe
 
 ## Features
 
+The page opens directly with Set the scene and Results, without a promotional header, introduction, or footer.
+
 - An optional orders calculator estimates per-draw probability from total orders × average draws per order (a fractional coefficient) and total prizes. Use either probability method, then click the shared Calculate button at the bottom of the left panel.
 - Adjustable per-draw win probability, total prizes, your accounts, and draws per account. Direct input includes Total prizes below the probability controls; winnings always respect that total.
 - Two separate graphs: bars for individual outcomes, and a cumulative line for **P(prizes ≥ X)**. For example, “2 or more prizes” includes exactly 2 prizes and every higher outcome. Cumulative probabilities are shown directly in the graph; there is no target input.
