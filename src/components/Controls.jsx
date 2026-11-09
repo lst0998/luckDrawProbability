@@ -2,22 +2,26 @@ import { useState, useEffect } from 'react';
 import { Minus, Plus, SlidersHorizontal, Users, Ticket, Gift, RotateCcw, ArrowRight, Info, PencilLine, Calculator } from 'lucide-react';
 import { LIMITS, COST_LIMITS } from '../model.js';
 
-export function NumberField({ label, value, onChange, name, suffix, step = 1, limits, allowDecimals = false }) {
+export function NumberField({ label, value, onChange, name, suffix, step = 1, limits, allowDecimals = false, disabled = false }) {
   const [draft, setDraft] = useState(String(value));
   const [min, max] = limits ?? LIMITS[name];
+  const decimals = allowDecimals || name === 'probability' || name === 'donationCost';
+  const valid = n => Number.isFinite(n) && n >= min && n <= max && (decimals || Number.isInteger(n));
+  const invalid = !disabled && draft.trim() !== '' && !valid(Number(draft));
+  const rangeError = !Number.isFinite(Number(draft)) || Number(draft) < min || Number(draft) > max;
   useEffect(() => setDraft(String(value)), [value]);
   const update = (raw) => {
     setDraft(raw);
     if (raw.trim() === '') return;
     const n = Number(raw);
-    if (Number.isFinite(n) && n >= min && n <= max && (allowDecimals || name === 'probability' || name === 'donationCost' || Number.isInteger(n))) onChange(n);
+    if (valid(n)) onChange(n);
   };
-  return <div className="number-field"><label htmlFor={name}>{label}</label><div className="number-input">
-    <button type="button" onClick={() => onChange(Math.max(min, +(value - step).toFixed(2)))} disabled={value <= min} aria-label={`Decrease ${label.toLowerCase()}`}><Minus size={13}/></button>
-    <input id={name} type="number" inputMode="decimal" min={min} max={max} step={step} value={draft} onChange={e => update(e.target.value)} onBlur={() => setDraft(String(value))}/>
+  return <div className={`number-field${invalid ? ' has-error' : ''}${disabled ? ' is-disabled' : ''}`}><label htmlFor={name}>{label}</label><div className="number-input">
+    <button type="button" onClick={() => onChange(Math.max(min, +(value - step).toFixed(2)))} disabled={disabled || value <= min} aria-label={`Decrease ${label.toLowerCase()}`}><Minus size={13}/></button>
+    <input id={name} type="number" inputMode="decimal" min={min} max={max} step={step} value={draft} disabled={disabled} aria-invalid={invalid || undefined} aria-describedby={invalid ? `${name}-error` : undefined} onChange={e => update(e.target.value)} onBlur={() => setDraft(String(value))}/>
     {suffix && <span>{suffix}</span>}
-    <button type="button" onClick={() => onChange(Math.min(max, +(value + step).toFixed(2)))} disabled={value >= max} aria-label={`Increase ${label.toLowerCase()}`}><Plus size={13}/></button>
-  </div></div>;
+    <button type="button" onClick={() => onChange(Math.min(max, +(value + step).toFixed(2)))} disabled={disabled || value >= max} aria-label={`Increase ${label.toLowerCase()}`}><Plus size={13}/></button>
+  </div>{invalid && <span className="number-error" id={`${name}-error`} role="alert">{rangeError ? `Enter ${min.toLocaleString()}–${max.toLocaleString()}.` : 'Enter a whole number.'}</span>}</div>;
 }
 export default function Controls({ config, onChange, onReset, donationCost, onCostChange, winningChanceCalculator }) {
   const [method, setMethod] = useState('direct');
@@ -28,7 +32,7 @@ export default function Controls({ config, onChange, onReset, donationCost, onCo
     setMethod(next);
     event.currentTarget.parentElement.querySelector(`#probability-tab-${next}`).focus();
   };
-  const field = (name, label) => <NumberField key={name} name={name} label={label} value={config[name]} onChange={v => onChange(name, v)}/>;
+  const field = (name, label, options = {}) => <NumberField key={name} name={name} label={label} value={config[name]} onChange={v => onChange(name, v)} {...options}/>;
   return <aside className="control-panel card" aria-label="Scenario settings">
     <div className="panel-title"><div><SlidersHorizontal size={17}/><h2>Set the scene</h2></div><button className="icon-button" onClick={() => { setMethod('direct'); onReset(); }} title="Reset to example" aria-label="Reset to example"><RotateCcw size={15}/></button></div>
     <div className="control-section" id="winning-chance-settings"><div className="section-heading"><span className="step-number">01</span><h3>The winning chance</h3></div>
@@ -52,7 +56,7 @@ export default function Controls({ config, onChange, onReset, donationCost, onCo
     </div>
     <div className="control-section"><div className="section-heading"><span className="step-number">03</span><h3>Optional prize limit</h3><Gift size={15}/></div>
       <label className="cap-toggle"><input type="checkbox" checked={config.limitPrizes} onChange={e => onChange('limitPrizes', e.target.checked)}/>Limit total prizes</label>
-      {config.limitPrizes && field('prizes', 'Maximum prizes')}
+      {field('prizes', 'Total prizes', { disabled: !config.limitPrizes })}
       <p className="field-note">An optional ceiling on your combined winnings. Off by default; this does not model how a shared pool runs out.</p>
     </div>
     <div className="panel-footer"><span className="live-dot"/>Changes update your results automatically<ArrowRight size={13}/></div>

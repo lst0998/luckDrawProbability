@@ -67,6 +67,27 @@ test('equal budget strategies preserve all draws', () => {
   assert.ok(rows.some(r=>r.accounts===20 && r.draws===10));
   rows.forEach(r=>assert.equal(r.accounts*r.draws,200));
 });
+test('200 to 2000 accounts increases expected wins tenfold when uncapped', () => {
+  const small=model.calculate({...base,accounts:200});
+  const large=model.calculate({...base,accounts:2000});
+  close(large.expected,small.expected*10,1e-8);
+  close(large.probabilities.reduce((a,b)=>a+b,0),1);
+  const capped=model.calculate({...base,accounts:2000,limitPrizes:true,prizes:100});
+  assert.equal(capped.probabilities.length,101);
+  assert.ok(capped.expected<=100);
+});
+test('10000 accounts remain normalized and comparison strategies use the full supported range', () => {
+  const config={...base,accounts:10000,draws:1,probability:50};
+  const result=model.calculate(config);
+  close(result.expected,5000,1e-8);
+  close(result.probabilities.reduce((a,b)=>a+b,0),1);
+  const rows=model.strategies({...config,accounts:2000,draws:5});
+  assert.ok(rows.some(row=>row.accounts===10000 && row.draws===1));
+  rows.forEach(row=>{
+    assert.equal(row.accounts*row.draws,10000);
+    assert.doesNotThrow(()=>model.calculate({...config,...row}));
+  });
+});
 test('ticket expectation and exact-win costs use two tickets per prize', () => {
   const r=model.theoreticalCosts({...base,probability:50,accounts:2,draws:1},5);
   close(r.expectedPrizes,1);close(r.expectedTickets,2);close(r.totalCost,10);close(r.costPerTicket,5);
@@ -101,7 +122,7 @@ test('zero wins has no finite ticket cost, while free donations with wins cost z
   assert.ok(free.costByWins.slice(1).every(row=>row.costPerTicket===0));
 });
 test('invalid inputs are rejected', () => {
-  for(const patch of [{accounts:-1},{probability:NaN},{limitPrizes:'false'}]) assert.throws(()=>model.calculate({...base,...patch}));
+  for(const patch of [{accounts:-1},{accounts:10001},{probability:NaN},{limitPrizes:'false'}]) assert.throws(()=>model.calculate({...base,...patch}));
   for(const cost of [-1,NaN,Infinity,1000001]) assert.throws(()=>model.theoreticalCosts(base,cost));
 });
 

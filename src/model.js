@@ -1,4 +1,4 @@
-export const LIMITS = { probability: [0, 100], accounts: [0, 1000], draws: [0, 10000], prizes: [0, 20000] };
+export const LIMITS = { probability: [0, 100], accounts: [0, 10000], draws: [0, 10000], prizes: [0, 20000] };
 export const COST_LIMITS = [0, 1000000];
 export const TICKETS_PER_PRIZE = 2;
 export const DEFAULTS = { probability: 5, accounts: 20, draws: 10, prizes: 20, limitPrizes: false };
@@ -83,7 +83,7 @@ export function strategies(config) {
   const budget = config.accounts * config.draws;
   if (!budget) return [];
   const divisors = [];
-  for (let a = 1; a <= Math.min(1000, budget); a++) if (budget % a === 0 && budget / a <= 10000) divisors.push(a);
+  for (let a = 1; a <= Math.min(LIMITS.accounts[1], budget); a++) if (budget % a === 0 && budget / a <= LIMITS.draws[1]) divisors.push(a);
   const selected = new Set([config.accounts]);
   for (let i = 0; i < 5; i++) selected.add(divisors[Math.round(i * (divisors.length - 1) / 4)]);
   return [...selected].sort((a, b) => a - b).map(accounts => ({ accounts, draws: budget / accounts }));
